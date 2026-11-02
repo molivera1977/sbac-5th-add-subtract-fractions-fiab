@@ -1,0 +1,3 @@
+.DS_Store
+# Kokoro working files (the line list and the recording log), not the site
+tools/kokoro-work/

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mrs. Olivera's 5th Grade Fractions Practice</title>
+<link rel="stylesheet" href="style.css?v=29">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+<div class="container">
+
+  <!-- PAGE 1: TITLE -->
+  <section id="home" class="screen">
+    <div class="home-inner">
+      <div class="main-title">Mrs. Olivera's</div>
+      <div class="sub-title">Add and Subtract with Equivalent Fractions</div>
+
+      <!-- the picture: 1/2 + 1/4 = 3/4 as fraction strips; the half is cut into 2 fourths to add (Marcos 11/2) -->
+      <svg class="home-pic" viewBox="0 0 430 140" role="img" aria-label="Fraction strips: one half plus one fourth equals three fourths">
+        <defs><clipPath id="hp-bar"><rect width="300" height="32" rx="9"/></clipPath></defs>
+        <g class="hp-row" transform="translate(120 6)">
+          <g clip-path="url(#hp-bar)"><rect width="300" height="32" fill="#fff"/><rect width="150" height="32" fill="#3b82f6"/></g>
+          <line x1="75" y1="5" x2="75" y2="27" stroke="#fff" stroke-width="2.5" stroke-dasharray="4 4"/>
+          <line x1="150" y1="0" x2="150" y2="32" class="hp-cut"/>
+          <rect width="300" height="32" rx="9" class="hp-edge"/>
+        </g>
+        <g class="hp-row" transform="translate(120 54)">
+          <g clip-path="url(#hp-bar)"><rect width="300" height="32" fill="#fff"/><rect width="75" height="32" fill="#f59e0b"/></g>
+          <line x1="75" y1="0" x2="75" y2="32" class="hp-cut"/><line x1="150" y1="0" x2="150" y2="32" class="hp-cut"/><line x1="225" y1="0" x2="225" y2="32" class="hp-cut"/>
+          <rect width="300" height="32" rx="9" class="hp-edge"/>
+        </g>
+        <g class="hp-row" transform="translate(120 102)">
+          <g clip-path="url(#hp-bar)"><rect width="300" height="32" fill="#fff"/><rect width="150" height="32" fill="#3b82f6"/><rect x="150" width="75" height="32" fill="#f59e0b"/></g>
+          <line x1="75" y1="0" x2="75" y2="32" class="hp-cut"/><line x1="150" y1="0" x2="150" y2="32" class="hp-cut"/><line x1="225" y1="0" x2="225" y2="32" class="hp-cut"/>
+          <rect width="300" height="32" rx="9" class="hp-edge"/>
+        </g>
+        <g class="hp-frac" transform="translate(80 22)"><text y="-5">1</text><line x1="-12" x2="12"/><text y="18">2</text></g>
+        <g class="hp-frac" transform="translate(80 70)"><text y="-5">1</text><line x1="-12" x2="12"/><text y="18">4</text></g>
+        <g class="hp-frac" transform="translate(80 118)"><text y="-5">3</text><line x1="-12" x2="12"/><text y="18">4</text></g>
+        <text class="hp-sign" x="30" y="80">+</text>
+        <text class="hp-sign" x="30" y="128">=</text>
+      </svg>
+
+      <div id="home-lead" class="home-lead" data-read-box>
+        <button type="button" id="home-say" class="say-home" aria-label="Read the welcome">🔊</button>
+        <p id="home-lead-words" class="home-lead-text"></p>
+      </div>
+
+      <div class="name-row">
+        <label class="sr-only" for="student-name">First name</label>
+        <input id="student-name" class="name-input" type="text" autocomplete="off" maxlength="20" placeholder="First name">
+        <label class="sr-only" for="student-last">Last name</label>
+        <input id="student-last" class="name-input" type="text" autocomplete="off" maxlength="20" placeholder="Last name">
+      </div>
+      <div id="name-hint" class="name-hint" data-read-box hidden>
+        <button type="button" class="say" aria-label="Read the note">🔊</button>
+        <span id="name-hint-words"></span>
+      </div>
+      <button type="button" id="start-btn" class="btn start-btn">Start ➜</button>
+
+      <div class="home-links">
+        <button type="button" id="scores-btn" class="home-link">Saved scores</button>
+        <span aria-hidden="true">·</span>
+        <a href="#" id="teacher-link" class="home-link">Teacher Access</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAGE 2: DIRECTIONS -->
+  <section id="directions" class="screen" hidden>
+    <div class="home-inner">
+      <div id="dir-head" class="dir-head" data-read-box>
+        <button type="button" id="dir-say" class="say-home say-dir" aria-label="Listen to the directions">🔊</button>
+        <h2 class="dir-title">Directions</h2>
+      </div>
+      <p class="dir-sub">Tap 🔊 and listen. Then press I'm ready.</p>
+      <ol id="dir-steps" class="dir-steps"></ol>
+      <p id="dir-note" class="dir-note" hidden></p>
+      <button type="button" id="dir-go" class="btn start-btn" aria-disabled="true">I'm ready ➜</button>
+      <a href="#" id="dir-back" class="change-name">← Back</a>
+    </div>
+  </section>
+
+  <!-- PAGE 3: PICK WHERE TO START -->
+  <section id="choose" class="screen" hidden>
+    <div class="home-inner">
+      <div class="choose-head">
+        <h2 id="hello" class="hello">Hi!</h2>
+        <button type="button" id="choose-say" class="say-home" aria-label="Read the directions">🔊</button>
+      </div>
+      <p class="choose-sub">Go in order. Each one opens when you finish the one before it.</p>
+      <p id="looking" class="looking" hidden>Looking for your saved work…</p>
+
+      <div id="resume" class="resume" hidden>
+        <p id="resume-text"></p>
+        <div class="resume-btns">
+          <button type="button" id="resume-go" class="btn small">Keep going ▶</button>
+          <button type="button" id="resume-new" class="btn small ghost">Start over (teacher PIN)</button>
+        </div>
+      </div>
+
+      <div class="set-grid">
+        <button type="button" class="set-btn set-W" data-set="W">🌱 Warm Up <span>Start here · 15 questions with friendlier numbers · 💡 reminders read to you · 2 takes</span></button>
+        <button type="button" class="set-btn set-R" data-set="R">Review <span>15 questions · a step up</span><span>2 takes</span></button>
+        <button type="button" class="set-btn set-TA" data-set="TA">Test A <span>Just like the real test</span><span>15 questions · 1 take</span></button>
+        <button type="button" class="set-btn set-TB" data-set="TB">Test B <span>Just like the real test</span><span>15 questions · 1 take</span></button>
+      </div>
+      <a href="#" id="change-name" class="change-name">Not you? Go back and type your name</a>
+    </div>
+  </section>
+
+  <!-- QUIZ -->
+  <section id="quiz" class="screen" hidden>
+    <header class="quiz-head">
+      <span id="set-banner" class="set-pill"></span>
+      <span id="q-count" class="q-count"></span>
+      <button type="button" id="exit-btn" class="exit-btn" title="Your place is saved">Exit</button>
+    </header>
+    <div class="pg-bar"><div id="progress-fill" class="pg-fill"></div></div>
+    <div id="item" class="item"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="screen" hidden>
+    <div id="reward" class="reward" hidden>
+      <div class="reward-icon">🏆</div>
+      <h2 id="reward-msg" class="reward-msg">Excellent Mastery!</h2>
+    </div>
+    <h2 class="res-title">Set Complete</h2>
+    <div id="r-name" class="res-name"></div>
+    <div id="r-msg" class="res-msg"></div>
+    <p id="r-sent" class="sent-note" hidden></p>
+    <div class="gr-grid">
+      <div><div class="stat" id="r-pts">0/15</div><div class="stat-l">Points</div></div>
+      <div><div class="stat" id="r-pct">0%</div><div class="stat-l">Score</div></div>
+      <div><div class="stat" id="r-grade">-</div><div class="stat-l">Grade</div></div>
+    </div>
+    <h3 class="skills-title">How you did on each skill</h3>
+    <table class="skill-table"><tbody id="skill-table"></tbody></table>
+    <div id="missed"></div>
+    <button type="button" id="home-btn" class="btn">Return to Menu</button>
+  </section>
+
+  <!-- TEACHER: CLASS SCORES (from Mrs. Olivera's Corner, any device) -->
+  <section id="teacher" class="screen" hidden>
+    <div class="key-head">
+      <h2>Class Scores</h2>
+      <div class="key-actions">
+        <button type="button" id="t-refresh" class="btn small ghost">Refresh</button>
+        <button type="button" id="t-key" class="btn small ghost">Answer key</button>
+        <button type="button" id="t-home" class="btn small">Back</button>
+      </div>
+    </div>
+    <p class="key-intro">Every finished set from every device, saved in Mrs. Olivera's Corner (Google Sheets). Each box shows the student's best score on that set.</p>
+    <div id="t-body"></div>
+  </section>
+
+  <!-- TEACHER ANSWER KEY -->
+  <section id="key" class="screen" hidden>
+    <div class="key-head">
+      <h2>Answer Key</h2>
+      <div class="key-tabs">
+        <button type="button" class="key-tab" data-set="W">Warm Up</button>
+        <button type="button" class="key-tab" data-set="W2">Warm Up · take 2</button>
+        <button type="button" class="key-tab" data-set="R">Review</button>
+        <button type="button" class="key-tab" data-set="R2">Review · take 2</button>
+        <button type="button" class="key-tab" data-set="TA">Test A</button>
+        <button type="button" class="key-tab" data-set="TB">Test B</button>
+      </div>
+      <div class="key-actions">
+        <button type="button" id="key-print" class="btn small ghost">Print</button>
+        <button type="button" id="key-home" class="btn small">Back</button>
+      </div>
+    </div>
+    <p class="key-intro">Same 15 slots as the Grade 5 FIAB "Add and Subtract with Equivalent Fractions": 7 multiple choice, 8 type-in fractions. Type-in answers accept any equal fraction.</p>
+    <div id="key-body"></div>
+  </section>
+
+  <!-- SCORE HISTORY -->
+  <div id="score-modal" class="modal" hidden>
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="scores-title">
+      <div class="modal-header">
+        <h2 id="scores-title">Score History</h2>
+        <button type="button" id="close-scores" class="close-btn" aria-label="Close">&times;</button>
+      </div>
+      <p class="modal-note">Scores are saved on this computer only.</p>
+      <div id="score-list" class="score-list"></div>
+      <button type="button" id="clear-scores" class="clear-btn">🗑️ Clear All Scores (Teacher Only)</button>
+    </div>
+  </div>
+
+</div>
+<script src="data/sets.js?v=25"></script>
+<script src="sheet.js?v=25"></script>
+<!-- Kokoro voice (Marcos 11/2): recordings first, then the player, then the page that speaks -->
+<script src="kokoro/lines.js?v=k3"></script>
+<script src="kokoro-voice.js?v=1"></script>
+<script src="app.js?v=28"></script>
+</body>
+</html>
