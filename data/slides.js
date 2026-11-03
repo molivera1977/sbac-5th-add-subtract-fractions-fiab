@@ -1,7 +1,8 @@
 /* Slide Mode: worked examples for Mrs. Olivera's desk or the board (Marcos 11/2: "Both, with new
    slides"). His standard (10/30): slides show only the teaching, never a question students are
-   scored on. So these are NEW examples, one or two per skill, with numbers that are on no set;
-   tools/validate.js checks that and recomputes every step.
+   scored on. So these are NEW examples, one or two per skill, with numbers that are on no set and
+   not the real test's own (11/2: slides 6 and 10 were); tools/validate.js checks both and
+   recomputes every step.
 
    problem: drawn like a question (the same parts: p, eq, steps, bars, grids, nline).
    steps:   shown one at a time; the answer comes last.
@@ -83,13 +84,13 @@ window.SLIDES = [
 { skill: 'tenths', title: 'Subtract tenths and hundredths',
   problem: [
     { p: 'Subtract.' },
-    { eq: '{80/100} − {3/10}' }],
+    { eq: '{50/100} − {2/10}' }],
   steps: [
     'Make them the same size first: change tenths to hundredths.',
-    '{3/10} = {3×10/10×10} = {30/100}.',
-    'Now subtract: {80/100} − {30/100} = {50/100}.'],
-  answer: '{80/100} − {3/10} = {50/100}',
-  check: { asked: '{80/100} − {3/10}', is: '{50/100}', eqs: ['{3/10} = {3×10/10×10} = {30/100}', '{80/100} − {30/100} = {50/100}'] } },
+    '{2/10} = {2×10/10×10} = {20/100}.',
+    'Now subtract: {50/100} − {20/100} = {30/100}.'],
+  answer: '{50/100} − {2/10} = {30/100}',
+  check: { asked: '{50/100} − {2/10}', is: '{30/100}', eqs: ['{2/10} = {2×10/10×10} = {20/100}', '{50/100} − {20/100} = {30/100}'] } },
 
 { skill: 'unlike', title: 'Add fractions with unlike denominators',
   problem: [
@@ -134,14 +135,14 @@ window.SLIDES = [
 { skill: 'models', title: 'Read a number line',
   problem: [
     { p: 'Point A shows how far Rosa ran in the morning, in miles.' },
-    { nline: { den: 6, at: 1, label: 'A' } },
-    { p: 'She ran {1/3} mile in the afternoon. How far did she run in all?' }],
+    { nline: { den: 10, at: 3, label: 'A' } },
+    { p: 'She ran {2/5} mile in the afternoon. How far did she run in all?' }],
   steps: [
-    '0 to 1 is cut into 6 equal parts. Each part is {1/6}.',
-    'Point A is 1 part from 0. So A is at {1/6}.',
-    'Change {1/3} to sixths: {1/3} = {1×2/3×2} = {2/6}.',
-    'Add: {1/6} + {2/6} = {3/6}.'],
-  answer: 'Rosa ran {3/6} mile in all. That is the same as {1/2} mile.',
-  check: { point: '{1/6}', asked: '{1/6} + {1/3}', is: '{3/6}', eqs: ['{1/3} = {1×2/3×2} = {2/6}', '{1/6} + {2/6} = {3/6}'] } }
+    '0 to 1 is cut into 10 equal parts. Each part is {1/10}.',
+    'Point A is 3 parts from 0. So A is at {3/10}.',
+    'Change {2/5} to tenths: {2/5} = {2×2/5×2} = {4/10}.',
+    'Add: {3/10} + {4/10} = {7/10}.'],
+  answer: 'Rosa ran {7/10} mile in all.',
+  check: { point: '{3/10}', asked: '{3/10} + {2/5}', is: '{7/10}', eqs: ['{2/5} = {2×2/5×2} = {4/10}', '{3/10} + {4/10} = {7/10}'] } }
 
 ];

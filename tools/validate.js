@@ -249,10 +249,40 @@ const scoredNumbers = new Map();
 Object.values(SETS).flat().forEach(it => { const a = askedOf(it); if (a) scoredNumbers.set(fracsOf(a), it.id); });
 const scoredText = new Map();
 Object.values(SETS).flat().forEach(it => it.parts.forEach(p => [p.p, p.eq, ...(p.steps || [])].filter(Boolean).forEach(t => scoredText.set(t, it.id))));
+// …and never the real test's own numbers, on a slide or a question (11/2: slides 6 and 10 were the
+// real FIAB's questions 9 and 15 with a new name). The real 15 as written on the test, from
+// practice test sources/grade5_math_add_subtract_equiv_fractions_fiab_blueprint.md.
+const REAL_TEST = [
+  ['□', '3/4'], ['1 7/8', '2 1/3'], ['10 1/2', '3 2/5'], ['2 1/7', '1 2/3'], ['3/10', '4/15'],
+  ['3/10', '40/100'], ['2/100', '5/10'], ['70/100', '5/10'], ['80/100', '3/10'], ['2 2/6', '1 1/3'],
+  ['3/5', '3/4'], ['1 1/2', '1 1/4'], ['1 1/4', '5/6'], ['2/4', '2/6'], ['1/6', '1/3']
+];
+// the numbers a problem shows, as written: in its words and equations (not worked-out steps) and its pictures
+const shownNumbers = parts => {
+  const out = new Set();
+  parts.forEach(p => {
+    [p.p, p.eq, ...(p.bullets || [])].filter(Boolean).forEach(t => {
+      [...t.matchAll(/\{([^}]+)\}/g)].forEach(m => out.add(m[1]));
+      if (t.includes('□')) out.add('□');
+    });
+    (p.grids || []).forEach(g => out.add(`${g.shaded}/${g.rows * g.cols}`));
+    if (p.nline) out.add(`${p.nline.at}/${p.nline.den}`);
+  });
+  return out;
+};
+const realTestIn = parts => {
+  const shown = shownNumbers(parts);
+  const q = REAL_TEST.findIndex(nums => nums.every(n => shown.has(n)));
+  return q < 0 ? '' : `the real test's question ${q + 1} (${REAL_TEST[q].join(', ')})`;
+};
+Object.values(SETS).flat().forEach(it => { const real = realTestIn(it.parts); if (real) bad(it.id, `uses the numbers of ${real}`); });
+
 SLIDES.forEach((sl, i) => {
   const id = `slide ${i + 1}`;
   const c = sl.check || {};
   walk(id, sl);
+  const real = realTestIn(sl.problem);
+  if (real) bad(id, `uses the numbers of ${real}`);
   if (!SKILLS[sl.skill]) bad(id, `unknown skill "${sl.skill}"`);
   if (!sl.title || !sl.steps || !sl.steps.length || !sl.answer) bad(id, 'needs a title, steps and an answer');
   try {
@@ -291,4 +321,4 @@ if (problems.length) {
   problems.forEach(p => console.log('  ✗ ' + p));
   process.exit(1);
 }
-console.log(`\nOK — ${ids.size} items, every key recomputed; ${SLIDES.length} slides, every step recomputed, none on a scored question.`);
+console.log(`\nOK — ${ids.size} items, every key recomputed; ${SLIDES.length} slides, every step recomputed, none on a scored question or the real test; no question on the real test's numbers.`);
