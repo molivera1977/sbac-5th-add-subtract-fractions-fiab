@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mrs. Olivera's 5th Grade Fractions Practice</title>
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=31">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
@@ -75,7 +78,7 @@
         <h2 class="dir-title">Directions</h2>
       </div>
       <p class="dir-sub">Tap 🔊 and listen. Then press I'm ready.</p>
-      <ol id="dir-steps" class="dir-steps"></ol>
+      <ol id="dir-steps" class="dir-steps" role="list"></ol>
       <p id="dir-note" class="dir-note" hidden></p>
       <button type="button" id="dir-go" class="btn start-btn" aria-disabled="true">I'm ready ➜</button>
       <a href="#" id="dir-back" class="change-name">← Back</a>
@@ -119,6 +122,49 @@
     </header>
     <div class="pg-bar"><div id="progress-fill" class="pg-fill"></div></div>
     <div id="item" class="item"></div>
+    <!-- Try it as a student: her bar to move around the set (nothing is saved) -->
+    <div id="teach-bar" class="teach-bar" hidden>
+      <span class="tb-tag">👀 Teacher preview · nothing is saved</span>
+      <span class="tb-nav">
+        <button type="button" id="tb-prev" class="tb-arrow" aria-label="Previous question">◀</button>
+        <select id="tb-jump" aria-label="Go to a question"></select>
+        <button type="button" id="tb-next" class="tb-arrow" aria-label="Next question">▶</button>
+      </span>
+      <button type="button" id="tb-back" class="btn small">← Teacher screen</button>
+    </div>
+  </section>
+
+  <!-- TEACHER: TRY IT AS A STUDENT (pick any set; nothing locked, nothing saved) -->
+  <section id="try" class="screen" hidden>
+    <div class="home-inner">
+      <h2 class="try-title">👀 Try it as a student</h2>
+      <p class="try-sub">Pick a set. Go to any question with ◀ ▶. Nothing is saved, and nothing goes to your sheet.</p>
+      <div class="try-grid">
+        <button type="button" class="try-btn set-W" data-set="W">Warm Up</button>
+        <button type="button" class="try-btn set-W" data-set="W2">Warm Up · take 2</button>
+        <button type="button" class="try-btn set-R" data-set="R">Review</button>
+        <button type="button" class="try-btn set-R" data-set="R2">Review · take 2</button>
+        <button type="button" class="try-btn set-TA" data-set="TA">Test A</button>
+        <button type="button" class="try-btn set-TB" data-set="TB">Test B</button>
+      </div>
+      <a href="#" id="try-back" class="change-name">← Teacher screen</a>
+    </div>
+  </section>
+
+  <!-- TEACHER: SLIDE MODE (worked examples only, never a question students are scored on) -->
+  <section id="slides" class="screen" hidden>
+    <header class="sl-bar">
+      <span class="sl-name">🖥️ Slide Mode</span>
+      <span id="sl-count" class="sl-count"></span>
+      <span class="tb-nav">
+        <button type="button" id="sl-prev" class="tb-arrow" aria-label="Previous slide">◀</button>
+        <select id="sl-jump" aria-label="Go to a slide"></select>
+        <button type="button" id="sl-next" class="tb-arrow" aria-label="Next slide">▶</button>
+      </span>
+      <button type="button" id="sl-back" class="btn small ghost">← Teacher screen</button>
+    </header>
+    <div id="sl-body" class="sl-body"></div>
+    <div class="sl-foot"><button type="button" id="sl-step" class="btn sl-step">Show step 1 ▶</button></div>
   </section>
 
   <!-- RESULTS -->
@@ -153,6 +199,10 @@
       </div>
     </div>
     <p class="key-intro">Every student's work from every device, saved in Mrs. Olivera's Corner (Google Sheets).</p>
+    <div class="t-acts">
+      <button type="button" id="t-try" class="t-act">👀 Try it as a student<span>Any set, any question. Nothing is saved.</span></button>
+      <button type="button" id="t-slides" class="t-act">🖥️ Slide Mode<span>Worked examples, big, for your desk or the board. Never the questions students answer.</span></button>
+    </div>
     <div id="t-body"></div>
   </section>
 
@@ -192,10 +242,11 @@
 
 </div>
 <script src="data/sets.js?v=25"></script>
+<script src="data/slides.js?v=1"></script>
 <script src="sheet.js?v=25"></script>
 <!-- Kokoro voice (Marcos 11/2): recordings first, then the player, then the page that speaks -->
 <script src="kokoro/lines.js?v=k3"></script>
 <script src="kokoro-voice.js?v=1"></script>
-<script src="app.js?v=28"></script>
+<script src="app.js?v=30"></script>
 </body>
 </html>

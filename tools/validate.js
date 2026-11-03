@@ -238,6 +238,49 @@ Object.keys(SETS).filter(k => /\d$/.test(k)).forEach(take2 => {
 const orders = Object.values(skillOrders);
 if (new Set(orders).size !== 1) bad('sets', 'the three sets do not follow the same slot order');
 
+// Slide Mode (data/slides.js): worked examples only. Every step recomputed, the picture matches
+// its numbers, and never the numbers of a question students are scored on (his standard 10/30:
+// "never the questions").
+vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'data', 'slides.js'), 'utf8'), ctx);
+const SLIDES = ctx.window.SLIDES || [];
+if (!SLIDES.length) bad('slides', 'no slides');
+const fracsOf = s => [...new Set([...String(s).matchAll(/\{([^}]+)\}/g)].map(m => show(tokenValue(m[1]))))].sort().join(' ');
+const scoredNumbers = new Map();
+Object.values(SETS).flat().forEach(it => { const a = askedOf(it); if (a) scoredNumbers.set(fracsOf(a), it.id); });
+const scoredText = new Map();
+Object.values(SETS).flat().forEach(it => it.parts.forEach(p => [p.p, p.eq, ...(p.steps || [])].filter(Boolean).forEach(t => scoredText.set(t, it.id))));
+SLIDES.forEach((sl, i) => {
+  const id = `slide ${i + 1}`;
+  const c = sl.check || {};
+  walk(id, sl);
+  if (!SKILLS[sl.skill]) bad(id, `unknown skill "${sl.skill}"`);
+  if (!sl.title || !sl.steps || !sl.steps.length || !sl.answer) bad(id, 'needs a title, steps and an answer');
+  try {
+    if (!eq(val(c.asked), val(c.is))) bad(id, `${c.asked} is not ${c.is}`);
+    if (!sl.answer.includes(c.is)) bad(id, `the answer does not show ${c.is}`);
+    (c.eqs || []).forEach(e => {
+      const segs = chain(e);
+      if (segs.some(s => !eq(s, segs[0]))) bad(id, `not true: ${e}`);
+      if (!sl.steps.some(st => st.includes(e))) bad(id, `"${e}" is not in its steps`);
+    });
+    (c.wrong || []).forEach(e => {
+      const segs = chain(e);
+      if (segs.every(s => eq(s, segs[0]))) bad(id, `the mistake it shows is not a mistake: ${e}`);
+      if (!JSON.stringify(sl.problem).includes(e.split(' = ')[1])) bad(id, `the mistake ${e} is not in the problem`);
+    });
+    sl.problem.forEach(p => {
+      if (p.bars && !eq(fr(p.bars.shaded.reduce((a, b) => a + b, 0), p.bars.den), val(c.model))) bad(id, `the bars show ${p.bars.shaded.join('+')} of ${p.bars.den}, not ${c.model}`);
+      if (p.grids) p.grids.forEach(g => { if (!fracsOf(c.asked).split(' ').includes(show(fr(g.shaded, g.rows * g.cols)))) bad(id, `${g.label} is not in ${c.asked}`); });
+      if (p.nline && !eq(fr(p.nline.at, p.nline.den), val(c.point))) bad(id, `point ${p.nline.label} is at ${p.nline.at}/${p.nline.den}, not ${c.point}`);
+    });
+  } catch (e) { bad(id, `slide check crashed: ${e.message}`); }
+  const same = scoredNumbers.get(fracsOf(c.asked));
+  if (same) bad(id, `same numbers as ${same}, a question students are scored on`);
+  sl.problem.forEach(p => [p.p, p.eq, ...(p.steps || [])].filter(Boolean).forEach(t => {
+    if (scoredText.has(t) && t.length > 12) bad(id, `"${t}" is word for word from ${scoredText.get(t)}`);
+  }));
+});
+
 console.log('Answer letters by set:');
 for (const [s, p] of Object.entries(positions)) {
   const count = 'ABCD'.split('').map(l => `${l}${p.filter(x => x === l).length}`).join(' ');
@@ -248,4 +291,4 @@ if (problems.length) {
   problems.forEach(p => console.log('  ✗ ' + p));
   process.exit(1);
 }
-console.log(`\nOK — ${ids.size} items, every key recomputed.`);
+console.log(`\nOK — ${ids.size} items, every key recomputed; ${SLIDES.length} slides, every step recomputed, none on a scored question.`);

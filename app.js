@@ -139,6 +139,12 @@
     if (litWord) litWord.classList.remove('hl');
     litWord = hit;
     if (hit) hit.classList.add('hl');
+    if (hit) keepInView(hit);
+  }
+  // a word said below (or above) the screen comes into view, so the eyes can follow the voice
+  function keepInView(w) {
+    const r = w.getBoundingClientRect();
+    if (r.height && (r.bottom > window.innerHeight || r.top < 0)) w.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   function unlight() {
     if (litWord) litWord.classList.remove('hl');
@@ -543,6 +549,7 @@
     }
     $('#check-btn').addEventListener('click', () => (locked ? nextItem() : checkAnswer()));
     show('quiz');
+    syncTeachBar();
   }
 
   function checkAnswer() {
@@ -562,6 +569,7 @@
     state.results[it.id] = { ok, picked };
     state.idx += 1; // saved one ahead, so coming back never asks this item again
     state.updated = Date.now();
+    if (preview) { showFeedback(it, ok, picked); return; }   // her preview: nothing kept here, nothing sent
     if (state.idx >= SETS[state.set].length) recordFinish(state);
     else {
       savePlace(state);
@@ -663,7 +671,9 @@
 
     $('#progress-fill').style.width = '100%';
     show('results');
-    sendToTeacher(state.saveId);
+    $('#home-btn').textContent = preview ? '← Teacher screen' : 'Return to Menu';
+    if (preview) $('#r-sent').hidden = true;
+    else sendToTeacher(state.saveId);
     if (pct >= 80 && window.confetti) {
       window.confetti(pct >= 90 ? { particleCount: 150, spread: 70, origin: { y: 0.6 } } : { particleCount: 50, spread: 45, origin: { y: 0.7 }, scalar: 0.8 });
     }
@@ -886,15 +896,45 @@
     'Press 🔊 to hear a question or an answer read to you.',
     'Your work saves after every question. You can stop and keep going later, on any computer.'
   ];
+  const DIR_ICONS = ['🪜', '🔓', '🔁', '✏️', '💡', '👂', '💻'];
   const DIR_DONE = "When you are done listening, press I'm ready.";
   const setReady = open => {
     $('#dir-go').setAttribute('aria-disabled', String(!open));
     if (open) $('#dir-note').hidden = true;
   };
 
+  // Each step is a card: number, picture, words. Key words get the look of what they name
+  // (each level in its card's color, a button as a small button); the words said stay the same.
+  const DIR_KEYS = [
+    ['Warm Up', 'k-W'], ['Review', 'k-R'], ['Test A', 'k-TA'], ['Test B', 'k-TB'],
+    ['Check Answer', 'k-btn'], ['Next', 'k-btn'], ['2 takes', 'k-em'], ['1 take', 'k-em'], ['new numbers', 'k-em'], ['any computer', 'k-em']
+  ];
+  const dirStepHTML = (d, i) => `<li class="dir-step"><span class="dir-num" aria-hidden="true">${i + 1}</span>` +
+    `<span class="dir-icon" aria-hidden="true">${DIR_ICONS[i]}</span><span class="dir-text">${sayHTML(d)}</span></li>`;
+  function markKeys(box) {
+    const words = [...box.querySelectorAll('.w')];
+    const bare = w => (w.dataset.say || '').replace(/[.,]$/, '');
+    for (let i = 0; i < words.length; i += 1) {
+      const hit = DIR_KEYS.find(([k]) => k.split(' ').every((part, j) => words[i + j] && bare(words[i + j]) === part));
+      if (!hit) continue;
+      const last = words[i + hit[0].split(' ').length - 1];
+      const range = document.createRange();
+      range.setStartBefore(words[i]);
+      range.setEndAfter(last);
+      const key = document.createElement('b');
+      key.className = `key ${hit[1]}`;
+      range.surroundContents(key);
+      // a period after a key word sits outside its color (it is still said: data-say keeps it)
+      const end = last.textContent.match(/[.,]$/);
+      if (end) { last.textContent = last.textContent.slice(0, -1); key.after(end[0]); }
+      i = words.indexOf(last);
+    }
+  }
+
   function renderDirections(name) {
     chooseName = name;
-    $('#dir-steps').innerHTML = DIRECTIONS.map(d => `<li>${sayHTML(d)}</li>`).join('');
+    $('#dir-steps').innerHTML = DIRECTIONS.map(dirStepHTML).join('');
+    document.querySelectorAll('#dir-steps .dir-text').forEach(markKeys);
     setReady(Boolean(store.get(HEARD_KEY, {})[normName(name)]));
     $('#dir-note').hidden = true;
     show('directions');
@@ -1051,6 +1091,91 @@
     $('#key-body').innerHTML = SETS[set].map(keyItemHTML).join('');
   }
 
+  /* ------------------------------------------------------------ teacher: try it as a student
+     Any set, any question, nothing locked: what a student sees and hears, but no row goes to
+     her sheet and no place or score is kept on this computer (Marcos 11/2: "teacher mode where
+     she can go through it like a student"). Her bar at the bottom moves around the set. */
+  let preview = false;
+  function tryAsStudent(set) {
+    preview = true;
+    state = { name: 'Teacher preview', set, idx: 0, results: {}, started: Date.now(), saveId: null };
+    $('#tb-jump').innerHTML = SETS[set].map((it, i) => `<option value="${i}">Question ${i + 1}</option>`).join('');
+    renderItem();
+  }
+  function syncTeachBar() {
+    $('#teach-bar').hidden = !preview;
+    document.body.classList.toggle('previewing', preview);
+    if (!preview) return;
+    $('#tb-jump').value = String(state.idx);
+    $('#tb-prev').disabled = state.idx === 0;
+    $('#tb-next').disabled = state.idx + 1 >= SETS[state.set].length;
+  }
+  function previewGo(i) {
+    if (!preview || !state || i < 0 || i >= SETS[state.set].length) return;
+    state.idx = i;
+    renderItem();
+  }
+  function leavePreview() {
+    preview = false;
+    state = null;
+    syncTeachBar();
+    show('teacher');
+  }
+
+  /* ------------------------------------------------------------ teacher: Slide Mode
+     Worked examples only (data/slides.js), never a question students are scored on (his
+     standard 10/30). Big, for her desk or the board. The steps come one at a time, the answer
+     last; ▶ / PageDown / → show the next step, then the next slide; ◀ / PageUp / ← go back. */
+  const SLIDES = window.SLIDES || [];
+  let slideAt = 0;
+  let stepsShown = 0;   // steps showing on this slide; one more than the steps = the answer too
+  function openSlides() {
+    $('#sl-jump').innerHTML = SLIDES.map((sl, i) => `<option value="${i}">${i + 1}. ${esc(sl.title)}</option>`).join('');
+    show('slides');
+    goSlide(0);
+  }
+  function goSlide(i) {
+    if (i < 0 || i >= SLIDES.length) return;
+    slideAt = i;
+    stepsShown = 0;
+    const sl = SLIDES[i];
+    // the problem on the left stays in view while the steps fill in on the right
+    $('#sl-body').innerHTML = `
+      <div class="sl-left">
+        <div class="sl-skill">${esc(SKILL_NAMES[sl.skill])}</div>
+        <h2 class="sl-title">${esc(sl.title)}</h2>
+        <div class="sl-problem stem">${sl.problem.map(partHTML).join('')}</div>
+      </div>
+      <div class="sl-right">
+        <ol class="sl-steps">${sl.steps.map(st => `<li hidden><span>${mathHTML(st)}</span></li>`).join('')}</ol>
+        <div class="sl-answer" hidden><span aria-hidden="true">✅</span> <span>${mathHTML(sl.answer)}</span></div>
+      </div>`;
+    $('#sl-count').textContent = `Slide ${i + 1} of ${SLIDES.length}`;
+    $('#sl-jump').value = String(i);
+    $('#sl-prev').disabled = i === 0;
+    $('#sl-next').disabled = i + 1 >= SLIDES.length;
+    window.scrollTo(0, 0);
+    syncSlide();
+  }
+  function syncSlide() {
+    const sl = SLIDES[slideAt];
+    const steps = [...document.querySelectorAll('#sl-body .sl-steps li')];
+    steps.forEach((li, k) => { li.hidden = k >= stepsShown; });
+    const answer = $('#sl-body .sl-answer');
+    answer.hidden = stepsShown <= steps.length;
+    const btn = $('#sl-step');
+    const last = slideAt + 1 >= SLIDES.length;
+    btn.textContent = stepsShown < steps.length ? `Show step ${stepsShown + 1} ▶`
+      : stepsShown === steps.length ? 'Show the answer ▶' : (last ? '🏁 Last slide' : 'Next slide ▶');
+    btn.disabled = stepsShown > sl.steps.length && last;
+    const newest = stepsShown > steps.length ? answer : steps[stepsShown - 1];
+    if (newest) newest.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function slideForward() {
+    if (stepsShown <= SLIDES[slideAt].steps.length) { stepsShown += 1; syncSlide(); }
+    else goSlide(slideAt + 1);
+  }
+
   /* ------------------------------------------------------------ wiring */
   document.querySelectorAll('.set-btn').forEach(b => b.addEventListener('click', () => startSet(b.dataset.set)));
   // First and last name (Marcos 11/2). A missing one gets a note that is read to them right away.
@@ -1094,8 +1219,8 @@
   $('#resume-go').addEventListener('click', () => startSet($('#resume').dataset.set));
   $('#resume-new').addEventListener('click', () => startOver($('#resume').dataset.set));
   // Exit goes back to the welcome page, so the next student never lands on this one's page
-  $('#exit-btn').addEventListener('click', () => { state = null; renderHome(); });
-  $('#home-btn').addEventListener('click', () => (chooseName ? renderChoose(chooseName) : renderHome()));
+  $('#exit-btn').addEventListener('click', () => { if (preview) { leavePreview(); return; } state = null; renderHome(); });
+  $('#home-btn').addEventListener('click', () => (preview ? leavePreview() : chooseName ? renderChoose(chooseName) : renderHome()));
   $('#scores-btn').addEventListener('click', openScores);
   $('#close-scores').addEventListener('click', () => { $('#score-modal').hidden = true; });
   $('#score-modal').addEventListener('click', e => { if (e.target.id === 'score-modal') $('#score-modal').hidden = true; });
@@ -1123,6 +1248,25 @@
   document.querySelectorAll('.key-tab').forEach(t => t.addEventListener('click', () => renderKey(t.dataset.set)));
   $('#key-print').addEventListener('click', () => window.print());
   $('#key-home').addEventListener('click', () => show('teacher'));
+  $('#t-try').addEventListener('click', () => show('try'));
+  document.querySelectorAll('.try-btn').forEach(b => b.addEventListener('click', () => tryAsStudent(b.dataset.set)));
+  $('#try-back').addEventListener('click', e => { e.preventDefault(); show('teacher'); });
+  $('#tb-prev').addEventListener('click', () => previewGo(state.idx - 1));
+  $('#tb-next').addEventListener('click', () => previewGo(state.idx + 1));
+  $('#tb-jump').addEventListener('change', e => { previewGo(Number(e.target.value)); e.target.blur(); });
+  $('#tb-back').addEventListener('click', leavePreview);
+  $('#t-slides').addEventListener('click', openSlides);
+  $('#sl-step').addEventListener('click', slideForward);
+  $('#sl-prev').addEventListener('click', () => goSlide(slideAt - 1));
+  $('#sl-next').addEventListener('click', () => goSlide(slideAt + 1));
+  $('#sl-jump').addEventListener('change', e => { goSlide(Number(e.target.value)); e.target.blur(); });
+  $('#sl-back').addEventListener('click', () => show('teacher'));
+  // a slide clicker or the keyboard: forward shows the next step, then the next slide
+  document.addEventListener('keydown', e => {
+    if (document.body.dataset.screen !== 'slides' || e.target.closest('select')) return;
+    if (['ArrowRight', 'PageDown'].includes(e.key) || (e.key === ' ' && !e.target.closest('button'))) { e.preventDefault(); slideForward(); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); goSlide(slideAt - 1); }
+  });
   // Page read-alouds hold no student's name, so every line can have a Kokoro recording
   // the cover's one line, said word for word as it is shown, each word lighting up (Marcos 11/2: the cover "too busy")
   const homeLeadHTML = () => sayHTML('Type your first and last name. Then press Start.');
@@ -1155,7 +1299,7 @@
         answers.forEach(([ok, picked]) => add(feedbackHTML(it, ok, picked)));
         if (it === SETS[set][0]) for (let n = 2; n <= SETS[set].length; n++) out.add(`${CHOOSE_SAY} ${resumeSay(set, n)}`);
       }));
-      DIRECTIONS.forEach(d => add(sayHTML(d)));
+      DIRECTIONS.forEach((d, i) => { box.innerHTML = dirStepHTML(d, i); markKeys(box); add(box.innerHTML); });
       add(homeLeadHTML());
       Object.values(NAME_HINTS).forEach(t => add(sayHTML(t)));
       ['Directions.', DIR_DONE, CHOOSE_SAY].forEach(t => out.add(t));
