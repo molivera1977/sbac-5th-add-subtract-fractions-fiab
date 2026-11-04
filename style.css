@@ -270,10 +270,28 @@ button { font: inherit; }
   .stem-eq { white-space: normal; }
 }
 
+/* the printed key (Marcos 11/3): a title on paper only, in place of the screen's heading and set tabs, so
+   each printout says which set it is (like Dollars and Sense); and "make sure no problem doesn't get cut
+   off": Letter, 0.5in margins, smaller and tighter than on screen so every question fits on one page
+   whole (the four-students question ran 964–1045px on a 960px page) */
+.key-print-head { display: none; }
 @media print {
+  @page { size: letter; margin: 0.5in; }
   body { background: #fff; padding: 0; }
-  .container { box-shadow: none; }
-  .key-tabs, .key-actions { display: none; }
+  .container { box-shadow: none; margin: 0; max-width: none; border-radius: 0; }
+  #key .key-head { display: none; }
+  #key { padding: 0; font-size: 14px; }
+  .key-intro { margin: 6px 0 0; }
+  .kq { margin: 10px 0; padding: 10px 14px; }
+  .kq-head { margin-bottom: 6px; }
+  .bubbles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; margin: 4px 0 10px; }
+  .bubble { padding-bottom: 18px; }
+  .bubble-body { padding: 12px 18px; }
+  .kq-choices { gap: 8px; margin-top: 8px; }
+  .kq-explain { margin-top: 8px; padding-top: 6px; }
+  .key-print-head { display: block; margin: 0 0 4px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+  .key-print-head h1 { margin: 0; font-size: 18pt; line-height: 1.2; color: #000; }
+  .key-print-head p { margin: 4px 0 0; font-size: 11pt; color: #333; }
 }
 
 /* ---------- score sent to Mrs. Olivera ---------- */

@@ -1088,6 +1088,11 @@
 
   function renderKey(set) {
     document.querySelectorAll('.key-tab').forEach(t => t.classList.toggle('on', t.dataset.set === set));
+    // the printed key's title (Marcos 11/3: titles on the printed versions, like Dollars and Sense): Print
+    // hides the tabs, so the paper says which set it is
+    const n = SETS[set].length, mc = SETS[set].filter(it => it.type === 'mc').length;
+    $('#key-print-head').innerHTML = `<h1>Add and Subtract with Equivalent Fractions — ${esc(setLabel(set))} Answer Key</h1>` +
+      `<p>Mrs. Olivera's 5th Grade · ${n} questions: ${mc} multiple choice, ${n - mc} type-in · the right answer is marked ✓</p>`;
     $('#key-body').innerHTML = SETS[set].map(keyItemHTML).join('');
   }
 
