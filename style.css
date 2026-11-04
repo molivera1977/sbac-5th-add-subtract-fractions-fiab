@@ -425,7 +425,8 @@ button { font: inherit; }
 .w.hl { background: #fde68a; border-radius: 4px; box-shadow: 0 0 0 2px #fde68a; }
 
 /* ---------- teacher: Try it as a student + Slide Mode (Marcos 11/2) ---------- */
-.t-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 14px 0 18px; }
+/* her three tools side by side (Marcos 11/3: "put answer key on level with try it as student and slide mode") */
+.t-acts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 14px 0 18px; }
 .t-act { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 16px; text-align: left; cursor: pointer;
   background: #fff; border: 2px solid var(--b); border-radius: 14px; font-weight: 700; font-size: 1.1rem; color: var(--pd); box-shadow: 0 3px 0 #e2e8f0; }
 .t-act span { font-size: 0.85rem; font-weight: 400; color: var(--tm); }
