@@ -482,3 +482,71 @@ body[data-screen="slides"] .container { max-width: 1320px; }
   .sl-body { grid-template-columns: 1fr; gap: 14px; padding: 14px 16px 6px; font-size: 1.05em; }
   .sl-bar { padding: 10px 16px; }
 }
+
+/* ---------- teacher: more on Class Scores (11/18) ---------- */
+/* updates by itself every 20 seconds */
+.t-updated { margin: 0 0 6px; font-size: 0.8rem; color: var(--tm); }
+.t-updated.t-err { color: var(--er); font-weight: 700; }
+/* every question number and every ✓ / ✗ on the heat map is a button */
+.h-qbtn { min-width: 28px; min-height: 28px; padding: 2px 6px; border: 2px solid var(--b); border-radius: 8px;
+  background: #fff; color: var(--pd); font: inherit; font-weight: 800; cursor: pointer; }
+.h-qbtn:hover, .h-qbtn:focus-visible { border-color: var(--pd); }
+.h-qbtn.on { background: var(--pd); border-color: var(--pd); color: #fff; }
+.h-cell { all: unset; display: block; width: 100%; min-height: 1.4em; text-align: center; cursor: pointer; border-radius: 4px; }
+.h-cell:hover, .h-cell.on { outline: 2px solid var(--pd); outline-offset: -2px; }
+.h-cell:focus-visible { outline: 3px solid #5eead4; outline-offset: -2px; }
+.t-heat td.h-time { padding-left: 8px; white-space: nowrap; font-weight: 600; font-size: 0.75rem; color: var(--tm); text-align: right; }
+/* the box under the heat map: one student's answer, and what everyone picked */
+.t-qbox { margin-top: 12px; border: 2px solid var(--pd); border-radius: 12px; padding: 12px 14px; background: #fff; }
+.t-qbox-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.t-qbox-head .t-qbox-x { margin-left: auto; border: 0; background: transparent; font-size: 1.1rem; cursor: pointer; color: var(--tm); }
+.t-qbox-q { margin: 4px 0; font-size: 0.95rem; line-height: 1.7; font-family: var(--font-read); }
+.t-qbox-a { margin: 8px 0; padding: 6px 10px; border-radius: 8px; background: var(--okb); font-size: 0.9rem; line-height: 1.7; }
+.t-qbox-a .line, .pk-ans .line, .t-student .line { display: inline; }
+.t-qbox-a .line + .line::before, .pk-ans .line + .line::before, .t-student .line + .line::before { content: ' '; }
+.t-picks { margin: 10px 0 0; }
+.t-picks h5 { margin: 0 0 6px; font-size: 0.85rem; color: var(--pd); }
+.t-picks h5 span { font-weight: 600; color: var(--tm); }
+.pk-group { margin: 8px 0 12px; padding-top: 6px; border-top: 1px solid var(--b); }
+.pk-title { margin: 4px 0; font-weight: 800; font-size: 0.85rem; color: var(--t); }
+.pk-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pk-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 2.2em; gap: 8px; align-items: center; font-size: 0.85rem; padding: 4px 8px; border-radius: 8px; }
+.pk-label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; line-height: 1.6; }
+.pk-ans { font-family: var(--font-read); }
+.pk-mark { font-weight: 800; color: var(--ok); }
+.pk-who { flex-basis: 100%; font-size: 0.75rem; color: var(--tm); }
+.pk-row.pk-right { background: var(--okb); }
+.pk-row.pk-top { background: var(--erb); }
+.pk-row em { font-style: normal; font-weight: 800; color: var(--er); }
+.pk-bar { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+.pk-bar i { display: block; height: 100%; background: var(--p); }
+.pk-right .pk-bar i { background: var(--ok); }
+.pk-top .pk-bar i { background: var(--er); }
+.pk-n { text-align: right; }
+.pk-unsaved, .pk-none { margin: 6px 0 0; font-size: 0.8rem; color: var(--tm); }
+.t-student { margin: 4px 0 10px; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--b); background: #f8fafc; font-size: 0.9rem; line-height: 1.7; }
+.t-student.ok { border-color: var(--ok); background: var(--okb); }
+.t-student.no { border-color: var(--er); background: var(--erb); }
+.t-student p { margin: 2px 0; }
+.t-student-pick, .t-student-key { font-family: var(--font-read); }
+.t-tag { font-family: var(--font-ui); font-weight: 700; color: var(--tm); }
+/* the skill / standard heat map */
+.t-skill th .sk-sub { display: block; font-weight: 400; font-size: 0.65rem; color: var(--tm); }
+.t-skill thead th { vertical-align: bottom; padding: 4px 4px; }
+.t-skill th.sk-std, .t-skill td:nth-last-child(-n+2) { border-left: 3px solid #94a3b8; }
+.t-skill td { padding: 6px 4px; }
+/* fix a misspelled name */
+.t-fix { margin: 22px 0 6px; padding: 10px 14px; border: 1px solid var(--b); border-radius: 12px; background: #f8fafc; }
+.t-fix summary { cursor: pointer; font-weight: 700; color: var(--pd); }
+.t-fix-note { font-size: 0.85rem; color: var(--tm); }
+.t-fix-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.t-fix-row label { display: flex; flex-direction: column; font-size: 0.8rem; gap: 4px; font-weight: 700; color: var(--tm); }
+.t-fix-row select, .t-fix-row input { font: inherit; font-size: 0.95rem; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 8px; color: var(--t); }
+.t-fix-msg { min-height: 1.2em; font-weight: 700; color: var(--pd); }
+@media (max-width: 700px) { .pk-row { grid-template-columns: minmax(0, 1fr) 60px 2em; } }
+/* each standard says what it is (11/18) */
+.t-skill .sk-name { display: block; font-size: 0.74rem; font-weight: 600; color: #333; line-height: 1.25; margin-top: 2px; }
+.t-std-list { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 6px; font-size: 0.88rem; }
+.t-std-list li { background: #faf8ff; border: 1px solid #e6e0f5; border-radius: 10px; padding: 7px 12px; }
+.t-std-words { display: block; margin-top: 2px; color: #333; }
+.t-qbox-stem .model-wrap { margin: 6px 0; }

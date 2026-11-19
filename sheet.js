@@ -98,5 +98,12 @@
     return post({ action: 'scores', pin });
   }
 
-  window.OliveraSheet = { connected: Boolean(SHEET_URL), queue, flush, isPending, newSaveId, loadPlaces, loadScores };
+  // Fix a misspelled name (11/18), with her PIN: { ok, moved } or { ok: false, error }. A sheet script from before
+  // 11/18 answers { ok: false, error: 'Unknown action' }; nothing changes there.
+  function renameStudent(pin, from, to) {
+    if (!SHEET_URL) return Promise.resolve({ ok: false, error: 'No sheet is connected yet' });
+    return post({ action: 'rename', pin, from, to });
+  }
+
+  window.OliveraSheet = { connected: Boolean(SHEET_URL), queue, flush, isPending, newSaveId, loadPlaces, loadScores, renameStudent };
 })();

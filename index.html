@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=35">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
@@ -207,7 +207,20 @@
       <button type="button" id="t-slides" class="t-act">🖥️ Slide Mode<span>Worked examples, big, for your desk or the board. Never the questions students answer.</span></button>
       <button type="button" id="t-key" class="t-act">✅ Answer key<span>Any set: the right answers, why the wrong ones are wrong, and how to solve. Ready to print.</span></button>
     </div>
+    <p id="t-updated" class="t-updated" role="status" hidden></p>
     <div id="t-body"></div>
+    <!-- a name typed wrong (11/18): outside #t-body, which is drawn again every 20 seconds, so typing here stays -->
+    <details id="t-fix" class="t-fix" hidden>
+      <summary>✏️ Fix a misspelled name</summary>
+      <p class="t-fix-note">A student who typed a name wrong shows up as a new student. Move that work to the right name. Every row of that name changes. Nothing is deleted.</p>
+      <div class="t-fix-row">
+        <label>Name to fix <select id="fix-from"></select></label>
+        <label>Right first name <input id="fix-first" type="text" maxlength="20" autocomplete="off"></label>
+        <label>Right last name <input id="fix-last" type="text" maxlength="20" autocomplete="off"></label>
+        <button type="button" id="fix-go" class="btn small">Move the work</button>
+      </div>
+      <p id="fix-msg" class="t-fix-msg" role="status"></p>
+    </details>
   </section>
 
   <!-- TEACHER ANSWER KEY -->
@@ -248,10 +261,10 @@
 </div>
 <script src="data/sets.js?v=25"></script>
 <script src="data/slides.js?v=2"></script>
-<script src="sheet.js?v=25"></script>
+<script src="sheet.js?v=26"></script>
 <!-- Kokoro voice (Marcos 11/2): recordings first, then the player, then the page that speaks -->
 <script src="kokoro/lines.js?v=k3"></script>
 <script src="kokoro-voice.js?v=ks1116"></script>
-<script src="app.js?v=31"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>

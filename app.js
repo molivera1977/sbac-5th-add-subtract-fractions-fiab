@@ -336,6 +336,7 @@
     document.querySelectorAll('.screen').forEach(s => { s.hidden = s.id !== id; });
     document.body.dataset.screen = id;
     window.scrollTo(0, 0);
+    autoRefresh();   // Class Scores asks her sheet again every 20 seconds while it shows; any other screen stops it
   }
 
   let state = null;     // { name, set, idx, results: { id: { ok, picked } }, started }
@@ -445,12 +446,20 @@
   // with new numbers. Past the last take (and to start over mid-set) needs Mrs. Olivera's PIN
   // (Marcos 11/2: "require a pin for a restart").
   function startSet(level) {
-    if (!isOpen(level)) return;
+    if (!isOpen(level)) { skipAhead(level); return; }
     if (choosePlaces[level]) { beginSet(choosePlaces[level].set); return; }
     const takes = TAKES[level];
     const tries = (chooseDone[level] || {}).tries || 0;
     if (tries >= takes.length && !askPin(`let ${chooseName} take ${SET_NAMES[level]} again`)) return;
     beginSet(takes[tries % takes.length]);
+  }
+
+  // A locked set (the one before it is not finished): her PIN lets this one student start it now (11/18).
+  // Nothing is opened for anyone else, and nothing is kept: once started, the set is this student's saved place.
+  function skipAhead(level) {
+    if (!SETS[level] || !askPin(`let ${chooseName} start ${SET_NAMES[level]} now`)) return;
+    const tries = (chooseDone[level] || {}).tries || 0;
+    beginSet(TAKES[level][tries % TAKES[level].length]);
   }
 
   function startOver(level) {
@@ -702,6 +711,8 @@
   let teacherPin = null;
   let classList = [];
   let heatSet = 'W';
+  let heatDone = [];    // the students on the heat map now (the take shown), with what they picked, for the box
+  let heatStats = [];   // the heat map's numbers per question, for the box
 
   const rowTime = r => Date.parse(r.updatedAt || r.finishedAt || r.savedAt) || 0;
 
@@ -774,7 +785,7 @@
     const table = `<div class="t-wrap"><table class="t-table"><thead><tr><th>Student</th>${sets.map(s => `<th>${SET_NAMES[s]}</th>`).join('')}</tr></thead>
       <tbody>${list.map(st => `<tr><td>${esc(st.name)}</td>${sets.map(s => `<td>${cellHTML(st.sets[s])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
-    const workingHTML = working.length ? `<h3 class="t-sub">In progress <span>(saved after every answer · press Refresh to update)</span></h3>
+    const workingHTML = working.length ? `<h3 class="t-sub">In progress <span>(saved after every answer · updates by itself every ${AUTO_MS / 1000} seconds)</span></h3>
       <ul class="t-working">${working.map(w => `<li><b>${esc(w.name)}</b> · ${setLabel(w.r.set)} · ${w.r.answered} of ${w.r.tot || 15} done · ${w.r.pts} right
         <span class="t-ago">${ago(w.r.updatedAt)}</span></li>`).join('')}</ul>` : '';
 
@@ -788,7 +799,8 @@
         <button type="button" class="key-tab" data-mode="latest">Latest take</button>
       </div>
       <div class="key-tabs t-tabs">${sets.map(s => `<button type="button" class="key-tab" data-heat="${s}">${SET_NAMES[s]}</button>`).join('')}</div>
-      <div id="t-heat"></div>`;
+      <div id="t-heat"></div>
+      <div id="t-skillmap"></div>`;
   }
 
   const heatClass = pct => (pct >= 80 ? 'h-hi' : pct >= 60 ? 'h-mid' : pct >= 40 ? 'h-low' : 'h-bad');
@@ -797,23 +809,43 @@
   // spot with new numbers, so a column is one skill whichever take a student had.
   let heatMode = 'latest';
   const slotOf = id => Number(String(id).slice(-2));
+  const modeText = () => (heatMode === 'first' ? '1st take' : 'latest take');
+
+  // Start to finish on the clock (11/18): "under 1 min", "N min", "H hr M min"; "—" when a time is missing, unreadable or the finish is before the start
+  function takeTime(r) {
+    const ms = Date.parse(r.finishedAt) - Date.parse(r.startedAt);
+    if (!(ms >= 0)) return '—';
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return 'under 1 min';
+    if (mins < 60) return `${mins} min`;
+    return `${Math.floor(mins / 60)} hr ${mins % 60} min`;
+  }
+
   function heatHTML(level) {
     const base = SETS[level];  // take 1: the example question shown for each spot
     const done = classList.filter(st => st.sets[level] && st.sets[level].takes.length).map(st => {
       const r = heatMode === 'first' ? st.sets[level].first : st.sets[level].latest;
-      return { name: st.name, r, pct: r.pct, missed: new Set(String(r.missed).split(',').map(x => x.trim()).filter(Boolean).map(slotOf)) };
+      return { name: st.name, key: normName(st.name), r, pct: r.pct, answers: answersOf(r),
+        missed: new Set(String(r.missed).split(',').map(x => x.trim()).filter(Boolean).map(slotOf)) };
     });
+    heatDone = done;
+    heatStats = [];
     if (!done.length) return `<p class="t-msg">No one has finished ${SET_NAMES[level]} yet.</p>`;
 
     const stats = base.map((it, i) => {
       const right = done.filter(d => !d.missed.has(i + 1)).length;
       return { it, i, right, pct: Math.round((right / done.length) * 100) };
     });
-    const heads = base.map((it, i) => `<th scope="col">${i + 1}</th>`).join('');
-    const body = done.map(d => `<tr><th scope="row">${esc(d.name)}${takeNo(d.r.set) > 1 ? ' <span class="t-take">take 2</span>' : ''}</th>${base.map((it, i) => (d.missed.has(i + 1)
-      ? `<td class="h-miss" title="${esc(d.name)} · question ${i + 1}: missed">✗</td>`
-      : `<td class="h-ok" title="${esc(d.name)} · question ${i + 1}: right">✓</td>`)).join('')}<td class="h-score ${gradeFor(d.pct).c}">${d.pct}%</td></tr>`).join('');
-    const foot = `<tr><th scope="row">% right</th>${stats.map(s => `<td class="${heatClass(s.pct)}">${s.pct}</td>`).join('')}<td></td></tr>`;
+    heatStats = stats;
+    // every question number and every ✓ / ✗ is a button: it opens the box under the map (11/18)
+    const heads = base.map((it, i) => `<th scope="col"><button type="button" class="h-qbtn" data-q="${i}" aria-expanded="false" aria-controls="t-qbox" title="${esc(SKILL_NAMES[it.skill])} · tap to see what everyone picked">${i + 1}</button></th>`).join('');
+    const cell = (d, si, i) => {
+      const miss = d.missed.has(i + 1);
+      const what = `${esc(d.name)} · question ${i + 1}: ${miss ? 'missed' : 'right'}`;
+      return `<td class="${miss ? 'h-miss' : 'h-ok'}"><button type="button" class="h-cell" data-s="${si}" data-q="${i}" aria-expanded="false" aria-controls="t-qbox" aria-label="${what}. Show the answer picked." title="${what} · tap to see the answer picked">${miss ? '✗' : '✓'}</button></td>`;
+    };
+    const body = done.map((d, si) => `<tr><th scope="row">${esc(d.name)}${takeNo(d.r.set) > 1 ? ' <span class="t-take">take 2</span>' : ''}</th>${base.map((it, i) => cell(d, si, i)).join('')}<td class="h-score ${gradeFor(d.pct).c}">${d.pct}%</td><td class="h-time">${takeTime(d.r)}</td></tr>`).join('');
+    const foot = `<tr><th scope="row">% right</th>${stats.map(s => `<td class="${heatClass(s.pct)}">${s.pct}</td>`).join('')}<td></td><td></td></tr>`;
 
     // Most right first for the top 3, fewest right first for the bottom 3; ties go to the earlier question
     const top = stats.slice().sort((a, b) => b.right - a.right || a.i - b.i).slice(0, 3);
@@ -823,9 +855,11 @@
       <div class="t-q"><i>${esc(SKILL_NAMES[s.it.skill])}:</i> ${mathHTML(itemSummary(s.it))}</div></li>`).join('')}</ol>`;
     const twoTakes = TAKES[level].length > 1;
 
-    return `<p class="t-legend">Showing each student's <b>${heatMode === 'first' ? '1st take' : 'latest take'}</b> · <span class="h-ok">✓</span> right · <span class="h-miss">✗</span> missed · bottom row = % of the ${done.length} ${done.length === 1 ? 'student' : 'students'} who got that question right</p>
-      <div class="t-wrap"><table class="t-heat"><thead><tr><th scope="col">Student</th>${heads}<th scope="col">Score</th></tr></thead>
+    return `<p class="t-legend">Showing each student's <b>${modeText()}</b> · <span class="h-ok">✓</span> right · <span class="h-miss">✗</span> missed · bottom row = % of the ${done.length} ${done.length === 1 ? 'student' : 'students'} who got that question right · <b>tap a question number</b> to see what everyone picked · <b>tap a ✓ or ✗</b> to see that student's answer</p>
+      <div class="t-wrap"><table class="t-heat"><thead><tr><th scope="col">Student</th>${heads}<th scope="col">Score</th><th scope="col">Time</th></tr></thead>
       <tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>
+      <p class="t-note t-time-note">Time = start to finish on the clock, so a break or a stop in the middle counts too.</p>
+      <div id="t-qbox" class="t-qbox" role="region" aria-live="polite" hidden></div>
       <div class="t-rank-grid">
         <div class="t-rank-box"><h4>⭐ Top 3 questions <span>most students right</span></h4>${rankHTML(top)}</div>
         <div class="t-rank-box"><h4>🔁 Bottom 3 questions <span>reteach these first</span></h4>${rankHTML(bottom)}</div>
@@ -833,39 +867,298 @@
       ${twoTakes ? '<p class="t-note">Take 2 asks the same kind of question in each spot with new numbers. The example questions shown are from take 1.</p>' : ''}`;
   }
 
-  function showHeat(set) {
+  /* ------------------------------------------------------------ teacher: what each student picked (11/18)
+     Her rows keep every pick: answers = { id: [ok, picked] } (attemptRecord). A question number opens a box with what
+     everyone picked on the take shown (one group per take: take 2 has its own numbers and choices); a ✓ / ✗ adds that
+     student's answer and the note they saw for it. Anything a student's computer sent is checked before it is used. */
+  const L = i => 'ABCD'[i];
+  const answersOf = r => {
+    try { const a = JSON.parse(r.answers || '{}'); return a && typeof a === 'object' && !Array.isArray(a) ? a : {}; } catch (e) { return {}; }
+  };
+  // a typed answer as one group: spaces dropped (" 3/4" is "3/4"); null when it is not a fraction a student could type
+  function typedKey(picked) {
+    if (typeof picked !== 'string' && typeof picked !== 'number') return null;
+    const m = String(picked).replace(/\s+/g, '').match(/^(\d{1,6})\/(\d{1,6})$/);
+    return m ? `${Number(m[1])}/${Number(m[2])}` : null;
+  }
+  // one student's pick on one question: a choice number, or a typed fraction; null when nothing usable was saved
+  function pickOf(it, d) {
+    const a = d.answers[it.id];
+    if (!Array.isArray(a)) return null;
+    if (it.type === 'mc') return Number.isInteger(a[1]) && it.choices[a[1]] ? a[1] : null;
+    return typedKey(a[1]);
+  }
+  const typedRight = (it, p) => { const f = parseFrac(p); return f[1] > 0 && sameValue(f, parseFrac(it.key)); };
+  const pickHTML = (it, p) => (it.type === 'mc' ? `${L(p)}. ${linesHTML(it.choices[p].t)}` : mathHTML(`{${p}}`));
+  const rightHTML = it => (it.type === 'mc' ? `${L(it.answer)}. ${linesHTML(it.choices[it.answer].t)}`
+    : `${mathHTML(`{${it.key}}`)} <span class="key-note">(or any equal fraction)</span>`);
+
+  // How many picked each answer, and who: every choice of a choice question; each different typed answer of a type-in.
+  // The wrong answer picked most is marked only when 2 or more students picked it (every one on a tie).
+  function pickCounts(it, people) {
+    const saved = people.map(d => ({ name: d.name, p: pickOf(it, d) })).filter(x => x.p != null);
+    const base = it.type === 'mc'
+      ? it.choices.map((c, i) => ({ p: i, right: i === it.answer }))
+      : [...new Set(saved.map(x => x.p))].map(p => ({ p, right: typedRight(it, p) }));
+    const counted = base.map(r => {
+      const who = saved.filter(x => x.p === r.p).map(x => x.name);
+      return { ...r, who, n: who.length };
+    });
+    const rows = it.type === 'mc' ? counted
+      : counted.slice().sort((a, b) => b.n - a.n || Number(b.right) - Number(a.right) || a.p.localeCompare(b.p, undefined, { numeric: true }));
+    const most = Math.max(0, ...rows.filter(r => !r.right).map(r => r.n));
+    return { saved: saved.length, unsaved: people.length - saved.length,
+      rows: rows.map(r => ({ ...r, top: most >= 2 && !r.right && r.n === most })) };
+  }
+
+  // the takes on the map for this question, take 1 first, each with its students
+  const takeGroups = level => TAKES[level].map(set => ({ set, people: heatDone.filter(d => d.r.set === set) })).filter(g => g.people.length);
+
+  function groupHTML(level, i, g) {
+    const it = SETS[g.set][i];
+    const { saved, unsaved, rows } = pickCounts(it, g.people);
+    const tops = rows.filter(r => r.top);
+    const n = g.people.length;
+    const title = `${SET_NAMES[level]}${TAKES[level].length > 1 ? ` · take ${takeNo(g.set)}` : ''} · ${n} ${n === 1 ? 'student' : 'students'}`;
+    const rowHTML = r => `<li class="pk-row${r.right ? ' pk-right' : ''}${r.top ? ' pk-top' : ''}">
+        <div class="pk-label"><div class="pk-ans">${pickHTML(it, r.p)}</div>${r.right ? '<span class="pk-mark">✓ right</span>' : ''}${r.top ? `<em>${tops.length > 1 ? 'tied for most-picked wrong answer' : 'most-picked wrong answer'}</em>` : ''}${r.n ? `<span class="pk-who">${r.who.map(esc).join(', ')}</span>` : ''}</div>
+        <span class="pk-bar" aria-hidden="true"><i style="width:${saved ? Math.round((r.n / saved) * 100) : 0}%"></i></span><b class="pk-n">${r.n}</b></li>`;
+    return `<div class="pk-group" data-set="${g.set}">
+        <p class="pk-title">${title}</p>
+        <div class="t-qbox-q t-qbox-stem">${stemHTML(it)}</div>
+        <div class="t-qbox-a"><b>Right answer:</b> ${rightHTML(it)}</div>
+        ${rows.length ? `<ul class="pk-list">${rows.map(rowHTML).join('')}</ul>` : '<p class="t-msg pk-none">No answers saved for this question yet.</p>'}
+        ${unsaved ? `<p class="pk-unsaved">${unsaved} ${unsaved === 1 ? 'student' : 'students'} with no answer saved</p>` : ''}
+      </div>`;
+  }
+
+  // one student's answer: what they picked, right or wrong, the right answer, and what they saw after checking it
+  function studentHTML(i, d) {
+    const it = SETS[d.r.set][i];
+    const right = !d.missed.has(i + 1);
+    const p = pickOf(it, d);
+    const head = `<b>${esc(d.name)}</b> · ${esc(setLabel(d.r.set))} · ${right ? '✓ right' : '✗ missed'}`;
+    if (p == null) return `<div class="t-student"><p>${head} · no answer saved for this question.</p></div>`;
+    const why = whyOf(it, right, p);
+    const saw = right ? 'Correct!' : `Not quite. ${why ? mathHTML(why) : 'Then the right answer and how to solve it.'}`;
+    return `<div class="t-student ${right ? 'ok' : 'no'}"><p>${head}</p>
+      <div class="t-student-pick"><span class="t-tag">Picked:</span> ${pickHTML(it, p)}</div>
+      <div class="t-student-key"><span class="t-tag">Right answer:</span> ${rightHTML(it)}</div>
+      <div class="t-student-why"><b>What ${esc(d.name.split(' ')[0])} saw:</b> ${saw}</div></div>`;
+  }
+
+  // the box under the heat map for question i (0-based); si = a student's row when a ✓ / ✗ was tapped
+  function qBoxHTML(i, si) {
+    const s = heatStats[i];
+    return `<div class="t-qbox-head"><b>Question ${i + 1}</b><span class="kq-skill">${esc(SKILL_NAMES[s.it.skill])}</span>
+        <span class="t-pill ${heatClass(s.pct)}">${s.right} of ${heatDone.length} right · ${s.pct}%</span>
+        <button type="button" class="t-qbox-x" data-qclose aria-label="Close question ${i + 1}">✕</button></div>
+      ${si != null && heatDone[si] ? studentHTML(i, heatDone[si]) : ''}
+      <div class="t-picks"><h5>What students picked <span>(${modeText()})</span></h5>${takeGroups(heatSet).map(g => groupHTML(heatSet, i, g)).join('')}</div>`;
+  }
+
+  // Open the box for question i (and student si), or close it when that one is already open
+  function toggleQ(i, si) {
+    const box = $('#t-qbox');
+    if (!box || !heatStats[i]) return;
+    const who = si == null ? '' : String(si);
+    const same = !box.hidden && box.dataset.q === String(i) && (box.dataset.s || '') === who;
+    document.querySelectorAll('#t-heat .h-qbtn').forEach(b => {
+      const on = !same && !who && b.dataset.q === String(i);
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-expanded', String(on));
+    });
+    document.querySelectorAll('#t-heat .h-cell').forEach(b => {
+      const on = !same && Boolean(who) && b.dataset.q === String(i) && b.dataset.s === who;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-expanded', String(on));
+    });
+    if (same) { box.hidden = true; box.dataset.q = ''; box.dataset.s = ''; box.dataset.who = ''; return; }
+    box.innerHTML = qBoxHTML(i, si);
+    box.dataset.q = String(i);
+    box.dataset.s = who;
+    box.dataset.who = who ? heatDone[si].key : '';
+    box.hidden = false;
+  }
+  // which box is open: the question and, for a ✓ / ✗, that student (by name, so a redraw finds them again)
+  function openBox() {
+    const box = $('#t-qbox');
+    return box && !box.hidden ? { q: Number(box.dataset.q), who: box.dataset.who || '' } : null;
+  }
+
+  /* ------------------------------------------------------------ teacher: skill / standard heat map (11/18)
+     Under the question heat map: one row per student (the take shown), one column per skill, then per standard;
+     a cell = right out of that group's questions. The questions carry a skill, not a standard: the standards come
+     from the real test's blueprint (5.NF.A.1 + 5.NF.A.2; the tenths and hundredths questions add unlike
+     denominators, so 5.NF.1). Take 2 has the same skill in each spot. */
+  // What each standard is (Marcos 11/18: "do the standards say what they are" → "Yes, add them"): a short name in its
+  // column, and its official words (thecorestandards.org, read 11/18) under the map
+  const STD_INFO = {
+    '5.NF.1': ['Add and subtract fractions with unlike denominators', 'Add and subtract fractions with unlike denominators (including mixed numbers) by replacing given fractions with equivalent fractions in such a way as to produce an equivalent sum or difference of fractions with like denominators.'],
+    '5.NF.2': ['Fraction word problems', 'Solve word problems involving addition and subtraction of fractions referring to the same whole, including cases of unlike denominators, e.g., by using visual fraction models or equations to represent the problem.']
+  };
+  const SKILL_STD = { inverse: '5.NF.1', steps: '5.NF.1', tenths: '5.NF.1', unlike: '5.NF.1', expr: '5.NF.2', error: '5.NF.2', models: '5.NF.2' };
+  function skillHTML(level) {
+    const base = SETS[level];
+    const where = test => base.map((it, i) => (test(it) ? i + 1 : 0)).filter(Boolean);
+    const skills = [...new Set(base.map(it => it.skill))];
+    const stds = [...new Set(skills.map(k => SKILL_STD[k]))].sort();
+    const cols = [...skills.map(k => { const qs = where(it => it.skill === k); return { label: SKILL_NAMES[k], sub: `${SKILL_STD[k]} · Q${qs.join(', ')}`, qs }; }),
+      ...stds.map(std => ({ label: std, name: (STD_INFO[std] || [])[0] || '', words: (STD_INFO[std] || [])[1] || '', sub: 'all its questions', qs: where(it => SKILL_STD[it.skill] === std), std: true }))];
+    const score = (d, qs) => {
+      const right = qs.filter(q => !d.missed.has(q)).length;
+      return { right, of: qs.length, pct: Math.round((right / qs.length) * 100) };
+    };
+    const cell = ({ right, of, pct }) => `<td class="${heatClass(pct)}" title="${right} of ${of} right">${right}/${of}</td>`;
+    const body = heatDone.map(d => `<tr><th scope="row">${esc(d.name)}${takeNo(d.r.set) > 1 ? ' <span class="t-take">take 2</span>' : ''}</th>${cols.map(c => cell(score(d, c.qs))).join('')}</tr>`).join('');
+    const foot = cols.map(c => {
+      const right = heatDone.reduce((n, d) => n + score(d, c.qs).right, 0);
+      const pct = Math.round((right / (heatDone.length * c.qs.length)) * 100);
+      return `<td class="${heatClass(pct)}">${pct}</td>`;
+    }).join('');
+    return `<h3 class="t-sub">Skill and standard heat map <span>(${SET_NAMES[level]} · each student's ${modeText()} · right out of that group's questions)</span></h3>
+      <div class="t-wrap"><table class="t-heat t-skill"><thead><tr><th scope="col">Student</th>${cols.map(c => `<th scope="col" class="${c.std ? 'sk-std' : ''}"${c.words ? ` title="${esc(c.words)}"` : ''}>${esc(c.label)}${c.name ? `<span class="sk-name">${esc(c.name)}</span>` : ''}<span class="sk-sub">${esc(c.sub)}</span></th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody><tfoot><tr><th scope="row">% right</th>${foot}</tr></tfoot></table></div>
+      <ul class="t-std-list">${stds.map(std => `<li><b>${esc(std)} · ${esc((STD_INFO[std] || [])[0] || '')}</b> <span class="t-std-words">${esc((STD_INFO[std] || [])[1] || '')}</span></li>`).join('')}</ul>
+      <p class="t-note">The questions name a skill, not a standard. The standards come from the real test's blueprint: 5.NF.1 = add and subtract with unlike denominators (the tenths and hundredths questions too); 5.NF.2 = word problems, models and finding the mistake.</p>`;
+  }
+
+  // keepBox: the box to open again after drawing (undefined = the one open now, when the set stays the same)
+  function showHeat(set, keepBox) {
+    const keep = keepBox !== undefined ? keepBox : (set === heatSet ? openBox() : null);
     heatSet = set;
     document.querySelectorAll('[data-heat]').forEach(t => t.classList.toggle('on', t.dataset.heat === set));
     document.querySelectorAll('[data-mode]').forEach(t => t.classList.toggle('on', t.dataset.mode === heatMode));
     $('#t-heat').innerHTML = heatHTML(set);
+    $('#t-skillmap').innerHTML = heatDone.length ? skillHTML(set) : '';
+    if (!keep || !heatStats[keep.q]) return;
+    const si = keep.who ? heatDone.findIndex(d => d.key === keep.who) : -1;
+    if (!keep.who) toggleQ(keep.q);
+    else if (si >= 0) toggleQ(keep.q, si);
   }
+
+  /* ------------------------------------------------------------ teacher: Class Scores, updating by itself (11/18)
+     While Class Scores shows and the tab is visible, her sheet is asked again every 20 seconds and the screen is
+     drawn again with her open box, her set, her take and her scroll place kept. Any other screen stops it. */
+  const AUTO_MS = 20000;
+  let autoTimer = null;
+  let loadSeq = 0;
+  function autoRefresh() {
+    clearTimeout(autoTimer);
+    autoTimer = null;
+    if (!teacherPin || document.body.dataset.screen !== 'teacher') return;
+    autoTimer = setTimeout(async () => {
+      autoTimer = null;
+      if (!document.hidden) await loadClass(true);
+      autoRefresh();   // only while Class Scores still shows (leaving it already cleared this timer)
+    }, AUTO_MS);
+  }
+  function stampUpdated(problem) {
+    const el = $('#t-updated');
+    const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    el.hidden = false;
+    el.classList.toggle('t-err', Boolean(problem));
+    el.textContent = problem ? `${problem} at ${time}. Trying again in ${AUTO_MS / 1000} seconds.`
+      : `Updated ${time} · updates by itself every ${AUTO_MS / 1000} seconds`;
+  }
+
+  // her sheet's rows, safe to draw: only this site's sets, the counts as numbers, the text as text (names are escaped where drawn)
+  const cleanRows = rows => (Array.isArray(rows) ? rows : [])
+    .filter(r => r && typeof r === 'object' && Object.prototype.hasOwnProperty.call(SETS, r.set))
+    .map(r => ({ ...r, name: String(r.name == null ? '' : r.name), status: String(r.status || ''), missed: String(r.missed == null ? '' : r.missed),
+      pts: Number(r.pts) || 0, tot: Number(r.tot) || 0, pct: Number(r.pct) || 0, answered: Number(r.answered) || 0 }));
 
   async function showTeacher() {
     show('teacher');
+    await loadClass(false);
+  }
+
+  // quiet: drawn again in place (no "Loading…"; a problem shows on the Updated line, the screen stays)
+  async function loadClass(quiet) {
     const body = $('#t-body');
     if (!OliveraSheet.connected) {
       body.innerHTML = `<p class="t-msg">Class scores are not connected to the Google Sheet yet.</p>`;
       return;
     }
-    body.innerHTML = `<p class="t-msg">Loading class scores…</p>`;
+    const seq = ++loadSeq;
+    if (!quiet) body.innerHTML = `<p class="t-msg">Loading class scores…</p>`;
+    let r;
     try {
-      const r = await OliveraSheet.loadScores(teacherPin);
-      if (!r.ok) {
-        body.innerHTML = `<p class="t-msg t-err">${r.error === 'Wrong PIN' ? 'The score sheet did not accept that PIN.' : `The score sheet answered: ${esc(r.error)}`}</p>`;
-        return;
-      }
-      classList = groupStudents(r.rows);
-      if (!classList.length) {
-        body.innerHTML = `<p class="t-msg">No finished sets yet. Scores show up here as soon as students finish a set.</p>`;
-        return;
-      }
-      body.innerHTML = classHTML(r.rows, classList);
-      // stay on the set she was looking at; otherwise the first set anyone has finished
-      const hasFinished = s => classList.some(st => st.sets[s] && st.sets[s].takes.length);
-      if (!hasFinished(heatSet)) heatSet = Object.keys(SET_NAMES).find(hasFinished) || heatSet;
-      showHeat(heatSet);
+      r = await OliveraSheet.loadScores(teacherPin);
     } catch (e) {
-      body.innerHTML = `<p class="t-msg t-err">Couldn't reach the score sheet. Check the internet, then press Refresh.</p>`;
+      if (seq !== loadSeq) return;
+      if (quiet) stampUpdated("Couldn't reach the score sheet");
+      else body.innerHTML = `<p class="t-msg t-err">Couldn't reach the score sheet. Check the internet, then press Refresh.</p>`;
+      return;
+    }
+    if (seq !== loadSeq) return;   // a newer ask is on its way
+    if (!r || !r.ok) {
+      const said = r && r.error === 'Wrong PIN' ? 'The score sheet did not accept that PIN' : `The score sheet answered: ${String(r && r.error)}`;
+      if (quiet) stampUpdated(said);
+      else body.innerHTML = `<p class="t-msg t-err">${esc(said)}.</p>`;
+      return;
+    }
+    const keep = quiet ? { box: openBox(), y: window.scrollY } : null;
+    const rows = cleanRows(r.rows);
+    classList = groupStudents(rows);
+    fillFix();
+    stampUpdated();
+    if (!classList.length) {
+      body.innerHTML = `<p class="t-msg">No finished sets yet. Scores show up here as soon as students finish a set.</p>`;
+      return;
+    }
+    body.innerHTML = classHTML(rows, classList);
+    // stay on the set she was looking at; otherwise the first set anyone has finished
+    const hasFinished = s => classList.some(st => st.sets[s] && st.sets[s].takes.length);
+    if (!hasFinished(heatSet)) heatSet = Object.keys(SET_NAMES).find(hasFinished) || heatSet;
+    showHeat(heatSet, keep ? keep.box : null);
+    if (keep && document.body.dataset.screen === 'teacher') window.scrollTo(0, keep.y);
+  }
+
+  /* ------------------------------------------------------------ teacher: fix a misspelled name (11/18)
+     A student who typed a name wrong shows up as a new student. She picks that name, types the right first and last
+     name (tidied as the sign-in tidies one, letters only), says OK, and her sheet moves every row of that name. The
+     panel is outside the part that is drawn again, so her typing stays. An older sheet script says 'Unknown action'. */
+  const NAME_PART = /^\p{L}+(?:['’-]\p{L}+)*$/u;
+  const tidyTyped = v => String(v).trim().replace(/\s+/g, ' ');
+  function fillFix() {
+    const sel = $('#fix-from');
+    const names = classList.map(st => st.name);
+    const list = JSON.stringify(names);
+    if (sel.dataset.names !== list) {   // only when the class changed, so a list she has open is not closed under her
+      const keep = sel.value;
+      sel.innerHTML = names.map(n => `<option>${esc(n)}</option>`).join('');
+      if (names.includes(keep)) sel.value = keep;
+      sel.dataset.names = list;
+    }
+    $('#t-fix').hidden = !names.length;
+  }
+  const FIX_ERRORS = {
+    'Unknown action': "Your score sheet can't fix names yet. It needs an update first. Nothing was changed.",
+    'Wrong PIN': 'The score sheet did not accept your PIN. Nothing was changed.',
+    'Bad name': 'The score sheet did not take that name. Use letters only: a first and a last name. Nothing was changed.'
+  };
+  async function fixName() {
+    const msg = text => { $('#fix-msg').textContent = text; };
+    const from = $('#fix-from').value;
+    const first = tidyTyped($('#fix-first').value), last = tidyTyped($('#fix-last').value);
+    if (!from) { msg('Pick the name to fix.'); return; }
+    if (!last || !first) { msg('Type the right first name and last name.'); return; }
+    if (![...first.split(' '), ...last.split(' ')].every(w => NAME_PART.test(w))) { msg('Use letters only in the name.'); return; }
+    const to = `${first} ${last}`.slice(0, 30).trim();   // her sheet keeps 30 letters of a name, as the sign-in does
+    if (normName(to) === normName(from)) { msg('That is the same name.'); return; }
+    if (!window.confirm(`Move all of ${from}'s work to ${to}?`)) { msg('Nothing was changed.'); return; }
+    msg('Moving…');
+    try {
+      const r = await OliveraSheet.renameStudent(teacherPin, from, to);
+      if (!r || !r.ok) { msg(FIX_ERRORS[r && r.error] || `The score sheet answered: ${String(r && r.error)}. Nothing was changed.`); return; }
+      const moved = Number(r.moved) || 0;
+      msg(`Moved ${moved} ${moved === 1 ? 'row' : 'rows'} from ${from} to ${to}.`);
+      $('#fix-first').value = '';
+      $('#fix-last').value = '';
+      await loadClass(true);
+    } catch (e) {
+      msg("Couldn't reach the score sheet. Check the internet, then try again.");
     }
   }
 
@@ -1011,7 +1304,7 @@
     document.querySelectorAll('#choose .set-btn').forEach(b => {
       const set = b.dataset.set;
       const open = isOpen(set);
-      b.disabled = looking || !open;
+      b.disabled = looking;   // a locked set stays tappable: her PIN can let this student start it now
       b.classList.toggle('locked', !open);
       const prev = ORDER[ORDER.indexOf(set) - 1];
       const place = choosePlaces[set], done = chooseDone[set];
@@ -1244,10 +1537,20 @@
   $('#t-refresh').addEventListener('click', showTeacher);
   $('#t-body').addEventListener('click', e => {
     const t = e.target.closest('[data-heat]');
-    if (t) showHeat(t.dataset.heat);
+    if (t) { showHeat(t.dataset.heat); return; }
     const m = e.target.closest('[data-mode]');
-    if (m) { heatMode = m.dataset.mode; showHeat(heatSet); }
+    if (m) { heatMode = m.dataset.mode; showHeat(heatSet); return; }
+    if (e.target.closest('[data-qclose]')) {
+      const box = $('#t-qbox');
+      toggleQ(Number(box.dataset.q), box.dataset.s ? Number(box.dataset.s) : undefined);
+      return;
+    }
+    const c = e.target.closest('.h-cell');
+    if (c) { toggleQ(Number(c.dataset.q), Number(c.dataset.s)); return; }
+    const q = e.target.closest('.h-qbtn');
+    if (q) toggleQ(Number(q.dataset.q));
   });
+  $('#fix-go').addEventListener('click', fixName);
   $('#t-key').addEventListener('click', () => { renderKey('W'); show('key'); });
   $('#t-home').addEventListener('click', () => { teacherPin = null; renderHome(); });
   document.querySelectorAll('.key-tab').forEach(t => t.addEventListener('click', () => renderKey(t.dataset.set)));
