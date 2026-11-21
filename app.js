@@ -326,6 +326,26 @@
   }
   const keyText = it => it.type === 'mc' ? it.choices[it.answer].t : `{${it.key}}`;
 
+  // 📍 Right Now (11/21, from Mr. O's dashboard): for a student in the middle of a set — each question ✓ / ✗ / not yet,
+  // the questions missed so far in words, and the share right so far (nothing answered yet counts as all right: sorts last)
+  function liveShare(r) {
+    const answered = Number(r.answered) || 0;
+    return answered ? (Number(r.pts) || 0) / answered : 1;
+  }
+  function liveStrip(r) {
+    const a = answersOf(r);
+    return `<span class="t-strip" aria-label="Each question so far">${(SETS[r.set] || []).map((it, i) => {
+      const x = a[it.id];
+      const mark = !x ? '' : x[0] ? '✓' : '✗';
+      return `<span class="ts-q ${!x ? 'ts-wait' : x[0] ? 'ts-ok' : 'ts-miss'}" title="Question ${i + 1}: ${!x ? 'not answered yet' : x[0] ? 'right' : 'wrong'}"><i>${i + 1}</i>${mark}</span>`;
+    }).join('')}</span>`;
+  }
+  function liveMissed(r) {
+    const a = answersOf(r);
+    const missed = (SETS[r.set] || []).map((it, i) => ({ it, i })).filter(({ it }) => a[it.id] && !a[it.id][0]);
+    return missed.length ? `<p class="t-live-miss">Missed: ${missed.map(({ it, i }) => `<b>${i + 1}.</b> ${esc(itemSummary(it))}`).join(' · ')}</p>` : '';
+  }
+
   /* ------------------------------------------------------------ fractions */
   const parseFrac = s => { const [n, d] = String(s).split('/').map(Number); return [n, d]; };
   const sameValue = (a, b) => a[0] * b[1] === b[0] * a[1];
@@ -764,7 +784,7 @@
     const sets = Object.keys(SET_NAMES);
     const finished = rows.filter(r => SETS[r.set] && r.status === 'Finished');
     const working = list.flatMap(st => sets.filter(s => st.sets[s] && st.sets[s].now).map(s => ({ name: st.name, set: s, r: st.sets[s].now })))
-      .sort((a, b) => rowTime(b.r) - rowTime(a.r));
+      .sort((a, b) => liveShare(a.r) - liveShare(b.r) || rowTime(b.r) - rowTime(a.r));   // 📍 the lowest share right first (11/21)
     // a save that waited offline arrives late, so take the newest finish time, not the last row
     const times = finished.map(r => Date.parse(r.finishedAt || r.savedAt)).filter(n => !isNaN(n));
     const last = new Date(Math.max(...times));
@@ -785,9 +805,9 @@
     const table = `<div class="t-wrap"><table class="t-table"><thead><tr><th>Student</th>${sets.map(s => `<th>${SET_NAMES[s]}</th>`).join('')}</tr></thead>
       <tbody>${list.map(st => `<tr><td>${esc(st.name)}</td>${sets.map(s => `<td>${cellHTML(st.sets[s])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
-    const workingHTML = working.length ? `<h3 class="t-sub">In progress <span>(saved after every answer · updates by itself every ${AUTO_MS / 1000} seconds)</span></h3>
+    const workingHTML = working.length ? `<h3 class="t-sub">In progress <span>(saved after every answer · lowest share right first · updates by itself every ${AUTO_MS / 1000} seconds)</span></h3>
       <ul class="t-working">${working.map(w => `<li><b>${esc(w.name)}</b> · ${setLabel(w.r.set)} · ${w.r.answered} of ${w.r.tot || 15} done · ${w.r.pts} right
-        <span class="t-ago">${ago(w.r.updatedAt)}</span></li>`).join('')}</ul>` : '';
+        <span class="t-ago">${ago(w.r.updatedAt)}</span>${liveStrip(w.r)}${liveMissed(w.r)}</li>`).join('')}</ul>` : '';
 
     return `<p class="t-sum">${list.length} ${list.length === 1 ? 'student' : 'students'} · ${finished.length} finished ${finished.length === 1 ? 'set' : 'sets'} · ${working.length} in progress${lastText}</p>
       ${workingHTML}
