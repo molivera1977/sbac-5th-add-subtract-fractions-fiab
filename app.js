@@ -326,7 +326,7 @@
   }
   const keyText = it => it.type === 'mc' ? it.choices[it.answer].t : `{${it.key}}`;
 
-  // 📍 Right Now (11/21, from Mr. O's dashboard): for a student in the middle of a set — each question ✓ / ✗ / not yet,
+  // 📍 Right Now (11/21, from the class dashboard): for a student in the middle of a set — each question ✓ / ✗ / not yet,
   // the questions missed so far in words, and the share right so far (nothing answered yet counts as all right: sorts last)
   function liveShare(r) {
     const answered = Number(r.answered) || 0;
