@@ -343,7 +343,7 @@
   function liveMissed(r) {
     const a = answersOf(r);
     const missed = (SETS[r.set] || []).map((it, i) => ({ it, i })).filter(({ it }) => a[it.id] && !a[it.id][0]);
-    return missed.length ? `<p class="t-live-miss">Missed: ${missed.map(({ it, i }) => `<b>${i + 1}.</b> ${esc(itemSummary(it))}`).join(' · ')}</p>` : '';
+    return missed.length ? `<p class="t-live-miss">Missed: ${missed.map(({ it, i }) => `<b>${i + 1}.</b> ${mathHTML(itemSummary(it))}`).join(' · ')}</p>` : '';
   }
 
   /* ------------------------------------------------------------ fractions */
