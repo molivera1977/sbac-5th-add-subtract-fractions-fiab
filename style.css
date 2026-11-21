@@ -551,7 +551,7 @@ body[data-screen="slides"] .container { max-width: 1320px; }
 .t-std-words { display: block; margin-top: 2px; color: #333; }
 .t-qbox-stem .model-wrap { margin: 6px 0; }
 
-/* 📍 Right Now (11/21, from Mr. O's dashboard): each question so far ✓ / ✗ / not yet, the misses in words */
+/* 📍 Right Now (11/21, from the class dashboard): each question so far ✓ / ✗ / not yet, the misses in words */
 .t-strip { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; flex-basis: 100%; }
 .ts-q { display: inline-flex; flex-direction: column; align-items: center; min-width: 26px; padding: 1px 3px; border-radius: 6px; font-size: 13px; line-height: 1.15; border: 1px solid #d0d7de; }
 .ts-q i { font-style: normal; font-size: 11px; color: #555; }
