@@ -553,9 +553,26 @@ body[data-screen="slides"] .container { max-width: 1320px; }
 
 /* 📍 Right Now (11/21, from the class dashboard): each question so far ✓ / ✗ / not yet, the misses in words */
 .t-strip { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; flex-basis: 100%; }
-.ts-q { display: inline-flex; flex-direction: column; align-items: center; min-width: 26px; padding: 1px 3px; border-radius: 6px; font-size: 13px; line-height: 1.15; border: 1px solid #d0d7de; }
+.ts-q { display: inline-flex; flex-direction: column; align-items: center; min-width: 26px; padding: 1px 3px; border-radius: 6px; font: inherit; font-size: 13px; line-height: 1.15; color: inherit; border: 1px solid #d0d7de; background: #fff; cursor: pointer; }
 .ts-q i { font-style: normal; font-size: 11px; color: #555; }
 .ts-ok { background: #dcfce7; border-color: #86efac; }
 .ts-miss { background: #fee2e2; border-color: #fca5a5; }
 .ts-wait { background: #fff; color: #999; }
-.t-live-miss { flex-basis: 100%; margin: 4px 0 0; font-size: 14px; color: #a61b1b; line-height: 1.35; }
+.t-live-miss { flex-basis: 100%; margin: 6px 0 0; font-size: 14px; line-height: 1.4; color: #333; }
+/* 🔎 tap a box (11/23): the box opens under the row · the misses one question a line · the score so far as a % */
+.ts-q:hover { border-color: var(--pd); }
+.ts-q:focus-visible, .ts-q.on { outline: 3px solid var(--pd); outline-offset: 1px; }
+.t-livebox { flex-basis: 100%; margin-top: 8px; }
+.t-student.wait { background: #f8fafc; }
+.t-hint { font-size: 0.86rem; color: var(--tm); margin: 0 0 8px; }
+.t-live-miss .lm-h { margin: 0 0 2px; font-weight: 700; color: #a61b1b; }
+.t-live-miss .lm-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.t-live-miss li { display: grid; grid-template-columns: 1.8em 1fr; gap: 6px; align-items: baseline; background: #fff; border-left: 3px solid #fca5a5; border-radius: 0; padding: 2px 8px; }
+.t-live-miss .lm-n { color: #a61b1b; }
+.t-live-miss .lm-line { display: block; min-width: 0; overflow-wrap: anywhere; }
+.t-live-miss .line { display: inline; }
+.t-live-miss .line + .line::before { content: ' '; }
+.t-live-miss .lm-pick { color: #a61b1b; margin-left: 6px; }
+.t-live-miss .lm-pick b { color: #c0392b; }
+.t-live-miss .lm-right { color: #1e7e46; margin-left: 6px; }
+.t-live-miss .lm-right b { color: #1e7e46; }
