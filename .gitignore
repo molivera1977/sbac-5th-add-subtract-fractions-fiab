@@ -1,3 +1,5 @@
 .DS_Store
 # Kokoro working files (the line list and the recording log), not the site
 tools/kokoro-work/
+# tools/ holds the real test's numbers (REAL_TEST in validate.js) — never on the public site (11/22)
+tools/
