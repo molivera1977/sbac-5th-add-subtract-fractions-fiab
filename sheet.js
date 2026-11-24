@@ -105,5 +105,12 @@
     return post({ action: 'rename', pin, from, to });
   }
 
-  window.OliveraSheet = { connected: Boolean(SHEET_URL), queue, flush, isPending, newSaveId, loadPlaces, loadScores, renameStudent };
+  // Sign in with first name + PIN (11/24): { ok, name, first } (the name on her class list) or { ok: false, error }
+  // ('No match' · 'No class list' · 'Unknown action' from a sheet script before 11/24). Throws if it can't be reached.
+  function signIn(first, pin) {
+    if (!SHEET_URL) return Promise.resolve({ ok: true, name: first, first });   // no sheet (a local copy): the first name only
+    return post({ action: 'signin', first, pin }, 8000);
+  }
+
+  window.OliveraSheet = { connected: Boolean(SHEET_URL), queue, flush, isPending, newSaveId, loadPlaces, loadScores, renameStudent, signIn };
 })();

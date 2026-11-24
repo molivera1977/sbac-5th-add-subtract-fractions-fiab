@@ -188,7 +188,9 @@
   }
   // Several lines, one after another, 900 ms apart, each its own short reading (Chrome can cut
   // off one long reading partway). onHeard runs after the last line ends, unless it was stopped.
-  function readLines(lines, el, onHeard) {   // lines: [{ text, marks }]
+  // onFail (11/23): the voice gave an error partway (not stopped by another 🔊 or by leaving), so a reading that
+  // must be heard first can open instead of leaving a student stuck behind a locked button.
+  function readLines(lines, el, onHeard, onFail) {   // lines: [{ text, marks }]
     stopReading();
     if (!window.speechSynthesis) return false;
     const run = { stopped: false };
@@ -212,7 +214,11 @@
         else if (i + 1 < lines.length) setTimeout(() => say(i + 1), 900);
         else done(true);
       };
-      u.onerror = () => done(false);
+      u.onerror = () => {
+        const voiceFailed = !run.stopped;   // stopReading marks a run stopped before its cancel() errors
+        done(false);
+        if (voiceFailed && onFail) onFail();
+      };
       speechSynthesis.speak(u);
     };
     say(0);
@@ -1180,6 +1186,7 @@
     const rows = cleanRows(r.rows);
     classList = groupStudents(rows);
     fillFix();
+    fillPins(r.students);
     stampUpdated();
     if (!classList.length) {
       body.innerHTML = `<p class="t-msg">No finished sets yet. Scores show up here as soon as students finish a set.</p>`;
@@ -1242,12 +1249,49 @@
     }
   }
 
+  /* ------------------------------------------------------------ teacher: each student's PIN (11/24)
+     Her class list comes with Class Scores (behind her PIN): one table per room, folded so it is not on the board, and
+     Print PIN cards — a titled page of cards to cut apart, one per student, with the first name they type and the PIN. */
+  let pinList = [];
+  const roomsOf = list => [...new Set(list.map(s => s.room))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  function fillPins(students) {
+    const list = (Array.isArray(students) ? students : [])
+      .filter(st => st && st.name && /^\d{4}$/.test(String(st.pin)))
+      .map(st => ({ name: String(st.name), first: String(st.first || st.name.split(' ')[0]), room: String(st.room || ''), pin: String(st.pin) }));
+    const sig = JSON.stringify(list);
+    $('#t-pins').hidden = !list.length;
+    if ($('#pins-body').dataset.sig === sig) return;   // the 20-second update: same list, leave it (and her place) alone
+    $('#pins-body').dataset.sig = sig;
+    pinList = list;
+    $('#pins-body').innerHTML = roomsOf(list).map(room => `<h4 class="t-pins-room">${room ? `Room ${esc(room)}` : 'No room'}</h4>` +
+      `<table class="t-pins-table"><thead><tr><th>Student</th><th>First name to type</th><th>PIN</th></tr></thead><tbody>` +
+      list.filter(st => st.room === room).sort(byName).map(st =>
+        `<tr><td>${esc(st.name)}</td><td>${esc(st.first)}</td><td class="pin">${esc(st.pin)}</td></tr>`).join('') +
+      '</tbody></table>').join('');
+  }
+  function printPins() {
+    if (!pinList.length) return;
+    $('#pin-cards').innerHTML = `<div class="pin-cards-head"><h1>Student PIN cards — Add and Subtract with Equivalent Fractions</h1>` +
+      `<p>Mrs. Olivera's 5th Grade · ${pinList.length} students · cut on the dashed lines</p></div>` +
+      roomsOf(pinList).map(room => `<div class="pin-card-grid">${pinList.filter(st => st.room === room).sort(byName).map(st =>
+        `<div class="pin-card"><div class="pin-card-site">Mrs. Olivera's Fractions${room ? ` · Room ${esc(room)}` : ''}</div>` +
+        `<div class="pin-card-name">${esc(st.name)}</div><div class="pin-card-pin">${esc(st.pin)}</div>` +
+        `<div class="pin-card-how">Type your first name, ${esc(st.first)}, and this PIN.</div></div>`).join('')}</div>`).join('');
+    document.body.classList.add('printing-pins');
+    window.print();
+  }
+  window.addEventListener('afterprint', () => document.body.classList.remove('printing-pins'));
+
   /* ------------------------------------------------------------ home */
   // Page 1: welcome. The name box always starts empty, so nobody starts as the last student.
   function renderHome() {
     $('#student-name').value = '';
-    $('#student-last').value = '';
+    $('#student-pin').value = '';
     $('#name-hint').hidden = true;
+    signSeq += 1;   // an answer still on its way is for the student before
+    signMisses = 0;
+    checking(false);
     chooseName = '';
     chooseFirst = '';
     choosePlaces = {};
@@ -1320,7 +1364,14 @@
       store.set(HEARD_KEY, { ...store.get(HEARD_KEY, {}), [normName(chooseName)]: true });
       setReady(true);
     };
-    const run = readLines(lines, $('#dir-head'), heard);
+    // the voice gave an error: open, so nobody is stuck (11/23: a student on a Chromebook whose voice fails)
+    const voiceFailed = () => {
+      if (document.body.dataset.screen !== 'directions') return;
+      setReady(true);
+      $('#dir-note').textContent = "If you couldn't hear it, read the directions above.";
+      $('#dir-note').hidden = false;
+    };
+    const run = readLines(lines, $('#dir-head'), heard, voiceFailed);
     if (run === false) {
       // this computer cannot read aloud: give time to read, then open
       $('#dir-note').textContent = "This computer can't read aloud. Read the directions, then press I'm ready.";
@@ -1556,8 +1607,17 @@
 
   /* ------------------------------------------------------------ wiring */
   document.querySelectorAll('.set-btn').forEach(b => b.addEventListener('click', () => startSet(b.dataset.set)));
-  // First and last name (Marcos 11/2). A missing one gets a note that is read to them right away.
-  const NAME_HINTS = { both: 'Type your first and last name.', first: 'Type your first name.', last: 'Type your last name.' };
+  // First name + PIN (Marcos 11/24: "4 digit pins for each student" → "first name and pin"). Anything missing or
+  // wrong gets a note that is read to them right away; a second wrong pair sends them to Mrs. Olivera.
+  const NAME_HINTS = {
+    both: 'Type your first name and your PIN.',
+    first: 'Type your first name.',
+    pin: 'Type your PIN. It has 4 numbers.',
+    wrong: 'That first name and PIN do not go together. Check both. Then press Start.',
+    wrong2: 'That first name and PIN do not go together. Ask Mrs. Olivera for help.',
+    offline: "Your PIN can't be checked right now. Check the internet. Then press Start.",
+    nolist: "Mrs. Olivera's class list is not ready yet. Tell Mrs. Olivera."
+  };
   function nameHint(which) {
     const box = $('#name-hint');
     $('#name-hint-words').innerHTML = sayHTML(NAME_HINTS[which]);
@@ -1566,23 +1626,66 @@
     readAloud(text, box, null, marks);
   }
   const typed = id => $(id).value.trim().replace(/\s+/g, ' ');
-  ['#student-name', '#student-last'].forEach(id => $(id).addEventListener('input', () => { $('#name-hint').hidden = true; }));
-  const goDirections = () => {
-    const first = typed('#student-name'), last = typed('#student-last');
-    if (!first || !last) {
-      nameHint(!first && !last ? 'both' : !first ? 'first' : 'last');
-      $(!first ? '#student-name' : '#student-last').focus();
+  ['#student-name', '#student-pin'].forEach(id => $(id).addEventListener('input', () => { $('#name-hint').hidden = true; }));
+  // the PIN box keeps digits only (a letter typed there just doesn't go in)
+  $('#student-pin').addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (digits !== e.target.value) e.target.value = digits;
+  });
+  /* Her sheet checks the pair against her class list and answers with the name ON the list, so every save of a
+     student is spelled the same way, however they typed their first name. No internet: a student who signed in
+     on this computer before (same first name, same PIN) can still start; anyone else is asked to check it. */
+  const SIGNINS_KEY = 'oliveraFracFiab_signins_v1';
+  const signKey = (first, pin) => `${normName(first)}|${pin}`;
+  let signSeq = 0;
+  let signMisses = 0;
+  function checking(on) {
+    $('#home-looking').hidden = !on;
+    $('#start-btn').disabled = on;
+  }
+  function signedIn(name, first) {
+    signMisses = 0;
+    chooseFirst = first;
+    renderDirections(String(name).slice(0, 30).trim());   // her sheet keeps 30 letters of a name: the same 30 find their saved work
+  }
+  const goDirections = async () => {
+    const first = typed('#student-name'), pin = typed('#student-pin');
+    if (!first || !/^\d{4}$/.test(pin)) {
+      nameHint(!first && !pin ? 'both' : !first ? 'first' : 'pin');
+      $(!first ? '#student-name' : '#student-pin').focus();
       return;
     }
-    chooseFirst = first;
-    renderDirections(`${first} ${last}`.slice(0, 30).trim());   // her sheet keeps 30 letters of a name: the same 30 find their saved work
+    if (!$('#home-looking').hidden) return;   // already checking
+    const seq = ++signSeq;
+    checking(true);
+    let r = null;
+    let reached = true;
+    try { r = await OliveraSheet.signIn(first, pin); } catch (e) { reached = false; }
+    if (seq !== signSeq || document.body.dataset.screen !== 'home') return;   // they left, or another student is here
+    checking(false);
+    const here = store.get(SIGNINS_KEY, {});
+    if (reached && r && r.ok) {
+      store.set(SIGNINS_KEY, { ...here, [signKey(first, pin)]: { name: r.name, first: r.first } });
+      signedIn(r.name, r.first);
+    } else if (!reached && here[signKey(first, pin)]) {
+      signedIn(here[signKey(first, pin)].name, here[signKey(first, pin)].first);
+    } else if (reached && r && r.error === 'No match') {
+      signMisses += 1;
+      nameHint(signMisses > 1 ? 'wrong2' : 'wrong');
+      $('#student-pin').focus();
+      $('#student-pin').select();
+    } else if (reached && r && (r.error === 'No class list' || r.error === 'Unknown action')) {
+      nameHint('nolist');
+    } else {
+      nameHint('offline');
+    }
   };
   $('#start-btn').addEventListener('click', goDirections);
   $('#student-name').addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
-    if (typed('#student-last')) goDirections(); else $('#student-last').focus();
+    if (typed('#student-pin')) goDirections(); else $('#student-pin').focus();
   });
-  $('#student-last').addEventListener('keydown', e => { if (e.key === 'Enter') goDirections(); });
+  $('#student-pin').addEventListener('keydown', e => { if (e.key === 'Enter') goDirections(); });
   $('#dir-say').addEventListener('click', hearDirections);
   $('#dir-go').addEventListener('click', () => {
     if ($('#dir-go').getAttribute('aria-disabled') === 'true') {
@@ -1634,6 +1737,7 @@
     if (q) toggleQ(Number(q.dataset.q));
   });
   $('#fix-go').addEventListener('click', fixName);
+  $('#pins-print').addEventListener('click', printPins);
   $('#t-key').addEventListener('click', () => { renderKey('W'); show('key'); });
   $('#t-home').addEventListener('click', () => { teacherPin = null; renderHome(); });
   document.querySelectorAll('.key-tab').forEach(t => t.addEventListener('click', () => renderKey(t.dataset.set)));
@@ -1660,7 +1764,7 @@
   });
   // Page read-alouds hold no student's name, so every line can have a Kokoro recording
   // the cover's one line, said word for word as it is shown, each word lighting up (Marcos 11/2: the cover "too busy")
-  const homeLeadHTML = () => sayHTML('Type your first and last name. Then press Start.');
+  const homeLeadHTML = () => sayHTML('Type your first name and your PIN. Then press Start.');
   $('#home-lead-words').innerHTML = homeLeadHTML();
   const CHOOSE_SAY = 'Go in order. Start with the Warm Up. Then do the Review. Then Test A, then Test B. They are just like the real test. Each one opens when you finish the one before it. You get 2 takes of the Warm Up and the Review, and 1 take of each test.';
   const resumeSay = (set, n) => `You started ${setLabel(set)}. You are on question ${n} of ${SETS[set].length}. Press Keep going.`;

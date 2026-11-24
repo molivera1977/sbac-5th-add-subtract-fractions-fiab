@@ -576,3 +576,26 @@ body[data-screen="slides"] .container { max-width: 1320px; }
 .t-live-miss .lm-pick b { color: #c0392b; }
 .t-live-miss .lm-right { color: #1e7e46; margin-left: 6px; }
 .t-live-miss .lm-right b { color: #1e7e46; }
+
+/* first name + PIN (11/24): the PIN box is narrower and spaced like a code */
+.name-input.pin-input { flex: 0 0 9.5em; letter-spacing: 0.3em; }
+/* her students' PINs, by room (folded on Class Scores) */
+.t-pins-room { margin: 12px 0 4px; color: var(--pd); }
+.t-pins-table { border-collapse: collapse; font-size: 0.95rem; min-width: 260px; }
+.t-pins-table th, .t-pins-table td { text-align: left; padding: 4px 14px 4px 0; border-bottom: 1px solid var(--b); }
+.t-pins-table td.pin { font-variant-numeric: tabular-nums; letter-spacing: 0.15em; font-weight: 700; }
+#pins-print { margin: 4px 0 6px; }
+/* PIN cards: paper only. A title first (every printout says what it is), then cards to cut apart. */
+.pin-cards { display: none; }
+@media print {
+  body.printing-pins .container > :not(#pin-cards) { display: none !important; }
+  body.printing-pins .pin-cards { display: block; }
+  .pin-cards-head h1 { margin: 0; font-size: 16pt; color: #000; }
+  .pin-cards-head p { margin: 4px 0 10px; font-size: 10pt; color: #333; }
+  .pin-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+  .pin-card { border: 1px dashed #555; padding: 10px 12px; break-inside: avoid; min-height: 1.6in; }
+  .pin-card-site { font-size: 9pt; color: #333; }
+  .pin-card-name { margin: 6px 0 4px; font-size: 15pt; font-weight: 800; color: #000; }
+  .pin-card-pin { font-size: 22pt; font-weight: 800; letter-spacing: 0.2em; color: #000; }
+  .pin-card-how { margin-top: 4px; font-size: 9pt; color: #333; }
+}

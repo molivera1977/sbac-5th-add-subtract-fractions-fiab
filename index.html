@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=36-tap1">
+<link rel="stylesheet" href="style.css?v=37-pin1">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
@@ -57,13 +57,14 @@
       <div class="name-row">
         <label class="sr-only" for="student-name">First name</label>
         <input id="student-name" class="name-input" type="text" autocomplete="off" maxlength="20" placeholder="First name">
-        <label class="sr-only" for="student-last">Last name</label>
-        <input id="student-last" class="name-input" type="text" autocomplete="off" maxlength="20" placeholder="Last name">
+        <label class="sr-only" for="student-pin">PIN</label>
+        <input id="student-pin" class="name-input pin-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4" placeholder="PIN">
       </div>
       <div id="name-hint" class="name-hint" data-read-box hidden>
         <button type="button" class="say" aria-label="Read the note">🔊</button>
         <span id="name-hint-words"></span>
       </div>
+      <p id="home-looking" class="looking" hidden>Checking your PIN…</p>
       <button type="button" id="start-btn" class="btn start-btn">Start ➜</button>
 
       <div class="home-links">
@@ -221,7 +222,17 @@
       </div>
       <p id="fix-msg" class="t-fix-msg" role="status"></p>
     </details>
+    <!-- each student's PIN (11/24: first name + PIN sign-in). Folded, so it is not on the board when she shows Class Scores. -->
+    <details id="t-pins" class="t-fix t-pins" hidden>
+      <summary>🔑 Student PINs</summary>
+      <p class="t-fix-note">Students sign in with their first name and this PIN. Keep this list private. A new student or a new PIN: ask Mr. O to add it to the class list.</p>
+      <button type="button" id="pins-print" class="btn small ghost">🖨️ Print PIN cards</button>
+      <div id="pins-body"></div>
+    </details>
   </section>
+
+  <!-- PIN cards, on paper only (Print PIN cards): a title, then one card per student to cut apart -->
+  <section id="pin-cards" class="pin-cards" aria-hidden="true"></section>
 
   <!-- TEACHER ANSWER KEY -->
   <section id="key" class="screen" hidden>
@@ -261,10 +272,10 @@
 </div>
 <script src="data/sets.js?v=25"></script>
 <script src="data/slides.js?v=2"></script>
-<script src="sheet.js?v=26"></script>
+<script src="sheet.js?v=27-pin1"></script>
 <!-- Kokoro voice (Marcos 11/2): recordings first, then the player, then the page that speaks -->
-<script src="kokoro/lines.js?v=k3"></script>
+<script src="kokoro/lines.js?v=k4-pin"></script>
 <script src="kokoro-voice.js?v=ks1116"></script>
-<script src="app.js?v=34-tap1"></script>
+<script src="app.js?v=35-pin1"></script>
 </body>
 </html>
