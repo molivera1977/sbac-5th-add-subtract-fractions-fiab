@@ -1230,6 +1230,72 @@
   }
 
   // her sheet's rows, safe to draw: only this site's sets, the counts as numbers, the text as text (names are escaped where drawn)
+  // her own class with no work yet (asked 11/25: "Until her 1st score"): sample students with the yellow bar, until her
+  // students' first saved answer comes in on an update; then her real class, and the sample is gone. Made up the same way
+  // each time from the questions themselves; nothing here comes from, or goes to, a real class.
+  let tWaiting = false;
+  function sampleRows() {
+    const plan = [
+      ['Ava Sample', 0.95, ['W', 'W2', 'R', 'R2', 'TA', 'TB']],
+      ['Ben Sample', 0.88, ['W', 'W2', 'R', 'R2', 'TA', 'TB']],
+      ['Cora Sample', 0.8, ['W', 'W2', 'R', 'R2', 'TA']],
+      ['Dev Sample', 0.72, ['W', 'W2', 'R', 'TA']],
+      ['Eli Sample', 0.64, ['W', 'W2', 'R', 'TA:7']],
+      ['Fay Sample', 0.56, ['W', 'R']],
+      ['Gus Sample', 0.48, ['W', 'W2', 'R:4']],
+      ['Hana Sample', 0.4, ['W', 'W2']],
+      // a teacher let these take a set again (1st take → latest take)
+      ['Dev Sample', 0.9, ['W']],
+      ['Gus Sample', 0.25, ['W']],
+      ['Fay Sample', 0.75, ['R']]
+    ];
+    const TOOK = [14, 22, 9, 31, 18, 0.5, 26, 12, 85, 7, 41];   // minutes each sample take took (85: stopped and came back)
+    const harder = { W: 0, W2: 0.02, R: 0.08, R2: 0.1, TA: 0.16, TB: 0.16 };
+    const spot = [0, 0.1, 0.04, 0, 0.14, 0.12, 0.16, 0.06, 0.22, 0.04, 0, 0.2, 0.04, 0.18, 0.08];   // one per question
+    let seed = 20261119;
+    const rnd = () => { seed = (Math.imul(seed, 1103515245) + 12345) >>> 0; return seed / 4294967296; };
+    const oneOf = list => list[Math.floor(rnd() * list.length)];
+    // a wrong answer, not always the same one (so "what students picked" has something to count): another choice, or a
+    // typed answer that is one of the question's common mistakes (or one more on top)
+    const wrongPick = it => {
+      if (it.type === 'mc') return oneOf(it.choices.map((c, i) => i).filter(i => i !== it.answer));
+      const traps = (it.traps || []).map(t => t.v);
+      if (traps.length && rnd() < 0.8) return oneOf(traps);
+      const [n, d] = parseFrac(it.key);
+      return `${n + 1}/${d}`;
+    };
+    const start = Date.now() - 4 * 864e5;
+    let tick = 0;
+    const rows = [];
+    plan.forEach(([name, skill, sets]) => sets.forEach(entry => {
+      const [set, upTo] = entry.split(':');
+      const items = SETS[set];
+      const answered = upTo ? Number(upTo) : items.length;
+      const answers = {};
+      const missed = [];
+      items.slice(0, answered).forEach((it, i) => {
+        const ok = rnd() < skill - harder[set] - spot[i];
+        answers[it.id] = [ok ? 1 : 0, ok ? (it.type === 'mc' ? it.answer : it.key) : wrongPick(it)];
+        if (!ok) missed.push(it.id);
+      });
+      const pts = answered - missed.length;
+      const finished = answered === items.length;
+      const pct = Math.round((pts / (finished ? items.length : answered)) * 100);
+      tick += 1;
+      const at = new Date(start + tick * 37 * 60000 + (finished ? 0 : 3 * 864e5)).toISOString();
+      rows.push({
+        savedAt: at, saveId: `S-sample-${rows.length + 1}`, name, set, pts, tot: items.length, pct,
+        grade: finished ? gradeFor(pct).l : '', missed: missed.join(', '), finishedAt: finished ? at : '',
+        status: finished ? 'Finished' : 'In progress', answered, answers: JSON.stringify(answers),
+        startedAt: new Date(Date.parse(at) - TOOK[tick % TOOK.length] * 60000).toISOString(), updatedAt: at
+      });
+    }));
+    // one started over (with the teacher's PIN): the scores show "↺ 1 restart"
+    rows.push({ savedAt: new Date(start).toISOString(), saveId: 'S-sample-restart', name: 'Eli Sample', set: 'R', pts: 2, tot: 15, pct: 67,
+      grade: '', missed: '', finishedAt: '', status: 'Restarted', answered: 3, answers: '{}', startedAt: new Date(start).toISOString(),
+      updatedAt: new Date(start + 60000).toISOString() });
+    return rows;
+  }
   const cleanRows = rows => (Array.isArray(rows) ? rows : [])
     .filter(r => r && typeof r === 'object' && Object.prototype.hasOwnProperty.call(SETS, r.set))
     .map(r => ({ ...r, name: String(r.name == null ? '' : r.name), status: String(r.status || ''), missed: String(r.missed == null ? '' : r.missed),
@@ -1269,6 +1335,10 @@
     if (!quiet) skOpen = null;   // ↻ Refresh draws anew, like the heat map's box
     const rows = cleanRows(r.rows);
     classList = groupStudents(rows);
+    tWaiting = !classList.length;
+    const shown = tWaiting ? cleanRows(sampleRows()) : rows;
+    if (tWaiting) classList = groupStudents(shown);
+    $('#t-sample').hidden = !tWaiting;
     fillFix();
     fillPins(r.students);
     stampUpdated();
@@ -1277,7 +1347,7 @@
       return;
     }
     if (!quiet) liveOpen = null;
-    body.innerHTML = classHTML(rows, classList);
+    body.innerHTML = classHTML(shown, classList);
     drawLive();
     // stay on the set she was looking at; otherwise the first set anyone has finished
     const hasFinished = s => classList.some(st => st.sets[s] && st.sets[s].takes.length);
@@ -1302,7 +1372,7 @@
       if (names.includes(keep)) sel.value = keep;
       sel.dataset.names = list;
     }
-    $('#t-fix').hidden = !names.length;
+    $('#t-fix').hidden = tWaiting || !names.length;
   }
   const FIX_ERRORS = {
     'Unknown action': "Your score sheet can't fix names yet. It needs an update first. Nothing was changed.",

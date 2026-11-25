@@ -628,3 +628,6 @@ body[data-screen="slides"] .container { max-width: 1320px; }
   .pin-card-pin { font-size: 22pt; font-weight: 800; letter-spacing: 0.2em; color: #000; }
   .pin-card-how { margin-top: 4px; font-size: 9pt; color: #333; }
 }
+
+/* 11/25 sample data bar: her class with no work yet shows sample students until her first student's answer arrives */
+.t-sample { margin: 12px 0 0; padding: 8px 14px; border-radius: 10px; background: #fef3c7; color: #78350f; font-weight: 800; border: 2px dashed #f59e0b; font-size: 0.9rem; }
