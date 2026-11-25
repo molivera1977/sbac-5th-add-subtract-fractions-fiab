@@ -495,6 +495,16 @@ body[data-screen="slides"] .container { max-width: 1320px; }
 .h-cell { all: unset; display: block; width: 100%; min-height: 1.4em; text-align: center; cursor: pointer; border-radius: 4px; }
 .h-cell:hover, .h-cell.on { outline: 2px solid var(--pd); outline-offset: -2px; }
 .h-cell:focus-visible { outline: 3px solid #5eead4; outline-offset: -2px; }
+/* the bottom row's % is a button too: it opens the same box as the question number (11/25) */
+.t-heat tfoot td:has(.h-pbtn) { padding: 0; }
+.h-pbtn { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 6px 0; text-align: center; cursor: pointer;
+  border-radius: 4px; font-weight: 800; }
+.h-pbtn:hover, .h-pbtn.on { outline: 3px solid var(--pd); outline-offset: -3px; }
+.h-pbtn:focus-visible { outline: 3px solid #5eead4; outline-offset: -3px; }
+/* Student and Score sort the rows (11/25) */
+.h-sort { all: unset; cursor: pointer; font-weight: 800; color: var(--tm); border-radius: 6px; padding: 2px 4px; white-space: nowrap; }
+.h-sort:hover, .h-sort:focus-visible { color: var(--pd); outline: 2px solid var(--pd); }
+.h-sort.on { color: var(--pd); }
 .t-heat td.h-time { padding-left: 8px; white-space: nowrap; font-weight: 600; font-size: 0.75rem; color: var(--tm); text-align: right; }
 /* the box under the heat map: one student's answer, and what everyone picked */
 .t-qbox { margin-top: 12px; border: 2px solid var(--pd); border-radius: 12px; padding: 12px 14px; background: #fff; }

@@ -892,6 +892,10 @@
   // One row per student, one column per question. Take 2 asks the same kind of question in each
   // spot with new numbers, so a column is one skill whichever take a student had.
   let heatMode = 'latest';
+  // the rows' order (Marcos 11/25: "the scores on the right should be sortable"): 'name' A–Z, or by score. Tap Score:
+  // highest first, tap again: lowest first; tap Student: back to A–Z. Kept through the 20-second updates and the set tabs.
+  let heatSort = 'name';
+  const SORTS = { 'score-down': (a, b) => b.pct - a.pct, 'score-up': (a, b) => a.pct - b.pct };
   const slotOf = id => Number(String(id).slice(-2));
   const modeText = () => (heatMode === 'first' ? '1st take' : 'latest take');
 
@@ -912,6 +916,7 @@
       return { name: st.name, key: normName(st.name), r, pct: r.pct, answers: answersOf(r),
         missed: new Set(String(r.missed).split(',').map(x => x.trim()).filter(Boolean).map(slotOf)) };
     });
+    if (SORTS[heatSort]) done.sort(SORTS[heatSort]);   // a new list (classList stays A–Z); equal scores stay A–Z
     heatDone = done;
     heatStats = [];
     if (!done.length) return `<p class="t-msg">No one has finished ${SET_NAMES[level]} yet.</p>`;
@@ -929,7 +934,11 @@
       return `<td class="${miss ? 'h-miss' : 'h-ok'}"><button type="button" class="h-cell" data-s="${si}" data-q="${i}" aria-expanded="false" aria-controls="t-qbox" aria-label="${what}. Show the answer picked." title="${what} · tap to see the answer picked">${miss ? '✗' : '✓'}</button></td>`;
     };
     const body = done.map((d, si) => `<tr><th scope="row">${esc(d.name)}${takeNo(d.r.set) > 1 ? ' <span class="t-take">take 2</span>' : ''}</th>${base.map((it, i) => cell(d, si, i)).join('')}<td class="h-score ${gradeFor(d.pct).c}">${d.pct}%</td><td class="h-time">${takeTime(d.r)}</td></tr>`).join('');
-    const foot = `<tr><th scope="row">% right</th>${stats.map(s => `<td class="${heatClass(s.pct)}">${s.pct}</td>`).join('')}<td></td><td></td></tr>`;
+    // the bottom row's % opens the same box as the question number at the top (Marcos 11/25)
+    const foot = `<tr><th scope="row">% right</th>${stats.map(s => `<td class="${heatClass(s.pct)}"><button type="button" class="h-pbtn" data-q="${s.i}" aria-expanded="false" aria-controls="t-qbox" aria-label="Question ${s.i + 1}: ${s.pct}% right. Show what everyone picked." title="Question ${s.i + 1} · ${s.right} of ${done.length} right · tap to see what everyone picked">${s.pct}</button></td>`).join('')}<td></td><td></td></tr>`;
+    // Student and Score are buttons that set the rows' order; aria-sort says which order is on
+    const sortHead = (key, label, on) => `<th scope="col" class="h-sorth"${on ? ` aria-sort="${on}"` : ''}><button type="button" class="h-sort${on ? ' on' : ''}" data-sort="${key}" title="${key === 'name' ? 'Sort by name, A to Z' : 'Sort by score (tap again to flip)'}">${label}<span class="h-arrow" aria-hidden="true">${on === 'descending' ? ' ▼' : on === 'ascending' ? ' ▲' : key === 'name' ? '' : ' ↕'}</span></button></th>`;
+    const scoreOn = heatSort === 'score-down' ? 'descending' : heatSort === 'score-up' ? 'ascending' : null;
 
     // Most right first for the top 3, fewest right first for the bottom 3; ties go to the earlier question
     const top = stats.slice().sort((a, b) => b.right - a.right || a.i - b.i).slice(0, 3);
@@ -939,8 +948,8 @@
       <div class="t-q"><i>${esc(SKILL_NAMES[s.it.skill])}:</i> ${mathHTML(itemSummary(s.it))}</div></li>`).join('')}</ol>`;
     const twoTakes = TAKES[level].length > 1;
 
-    return `<p class="t-legend">Showing each student's <b>${modeText()}</b> · <span class="h-ok">✓</span> right · <span class="h-miss">✗</span> missed · bottom row = % of the ${done.length} ${done.length === 1 ? 'student' : 'students'} who got that question right · <b>tap a question number</b> to see what everyone picked · <b>tap a ✓ or ✗</b> to see that student's answer</p>
-      <div class="t-wrap"><table class="t-heat"><thead><tr><th scope="col">Student</th>${heads}<th scope="col">Score</th><th scope="col">Time</th></tr></thead>
+    return `<p class="t-legend">Showing each student's <b>${modeText()}</b> · <span class="h-ok">✓</span> right · <span class="h-miss">✗</span> missed · bottom row = % of the ${done.length} ${done.length === 1 ? 'student' : 'students'} who got that question right · <b>tap a question number or its %</b> to see what everyone picked · <b>tap a ✓ or ✗</b> to see that student's answer · <b>tap Score</b> to sort by score (again to flip; tap Student for A–Z)</p>
+      <div class="t-wrap"><table class="t-heat"><thead><tr>${sortHead('name', 'Student', heatSort === 'name' ? 'ascending' : null)}${heads}${sortHead('score', 'Score', scoreOn)}<th scope="col">Time</th></tr></thead>
       <tbody>${body}</tbody><tfoot>${foot}</tfoot></table></div>
       <p class="t-note t-time-note">Time = start to finish on the clock, so a break or a stop in the middle counts too.</p>
       <div id="t-qbox" class="t-qbox" role="region" aria-live="polite" hidden></div>
@@ -1047,7 +1056,7 @@
     if (!box || !heatStats[i]) return;
     const who = si == null ? '' : String(si);
     const same = !box.hidden && box.dataset.q === String(i) && (box.dataset.s || '') === who;
-    document.querySelectorAll('#t-heat .h-qbtn').forEach(b => {
+    document.querySelectorAll('#t-heat .h-qbtn, #t-heat .h-pbtn').forEach(b => {   // the number and its % open the same box
       const on = !same && !who && b.dataset.q === String(i);
       b.classList.toggle('on', on);
       b.setAttribute('aria-expanded', String(on));
@@ -1731,9 +1740,15 @@
       toggleQ(Number(box.dataset.q), box.dataset.s ? Number(box.dataset.s) : undefined);
       return;
     }
+    const so = e.target.closest('#t-heat [data-sort]');
+    if (so) {   // Score: highest first, then lowest first, then highest again; Student: A–Z. The open box stays open.
+      heatSort = so.dataset.sort === 'name' ? 'name' : heatSort === 'score-down' ? 'score-up' : 'score-down';
+      showHeat(heatSet);
+      return;
+    }
     const c = e.target.closest('.h-cell');
     if (c) { toggleQ(Number(c.dataset.q), Number(c.dataset.s)); return; }
-    const q = e.target.closest('.h-qbtn');
+    const q = e.target.closest('.h-qbtn, .h-pbtn');
     if (q) toggleQ(Number(q.dataset.q));
   });
   $('#fix-go').addEventListener('click', fixName);
