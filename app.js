@@ -1098,32 +1098,106 @@
     const stds = [...new Set(skills.map(k => SKILL_STD[k]))].sort();
     const cols = [...skills.map(k => { const qs = where(it => it.skill === k); return { label: SKILL_NAMES[k], sub: `${SKILL_STD[k]} · Q${qs.join(', ')}`, qs }; }),
       ...stds.map(std => ({ label: std, name: (STD_INFO[std] || [])[0] || '', words: (STD_INFO[std] || [])[1] || '', sub: 'all its questions', qs: where(it => SKILL_STD[it.skill] === std), std: true }))];
-    const score = (d, qs) => {
-      const right = qs.filter(q => !d.missed.has(q)).length;
-      return { right, of: qs.length, pct: Math.round((right / qs.length) * 100) };
+    skCols = cols;
+    // every box, every skill or standard name and every % is a button: it opens the box under this map (11/25)
+    const cell = (d, si, c, ci) => {
+      const { right, of, pct } = skScore(d, c.qs);
+      const what = `${esc(d.name)} · ${esc(c.label)}: ${right} of ${of} right`;
+      return `<td class="${heatClass(pct)}"><button type="button" class="sk-cell" data-c="${ci}" data-s="${si}" aria-expanded="false" aria-controls="t-skbox" aria-label="${what}. Show the answers." title="${what} · tap to see the answers">${right}/${of}</button></td>`;
     };
-    const cell = ({ right, of, pct }) => `<td class="${heatClass(pct)}" title="${right} of ${of} right">${right}/${of}</td>`;
-    const body = heatDone.map(d => `<tr><th scope="row">${esc(d.name)}${takeNo(d.r.set) > 1 ? ' <span class="t-take">take 2</span>' : ''}</th>${cols.map(c => cell(score(d, c.qs))).join('')}</tr>`).join('');
-    const foot = cols.map(c => {
-      const right = heatDone.reduce((n, d) => n + score(d, c.qs).right, 0);
-      const pct = Math.round((right / (heatDone.length * c.qs.length)) * 100);
-      return `<td class="${heatClass(pct)}">${pct}</td>`;
+    const body = heatDone.map((d, si) => `<tr><th scope="row">${esc(d.name)}${takeNo(d.r.set) > 1 ? ' <span class="t-take">take 2</span>' : ''}</th>${cols.map((c, ci) => cell(d, si, c, ci)).join('')}</tr>`).join('');
+    const foot = cols.map((c, ci) => {
+      const { pct } = skGroup(c);
+      return `<td class="${heatClass(pct)}"><button type="button" class="sk-pbtn" data-c="${ci}" aria-expanded="false" aria-controls="t-skbox" aria-label="${esc(c.label)}: ${pct}% right. Show its questions." title="${esc(c.label)} · tap to see its questions">${pct}</button></td>`;
     }).join('');
+    const head = (c, ci) => `<th scope="col" class="${c.std ? 'sk-std' : ''}"${c.words ? ` title="${esc(c.words)}"` : ''}><button type="button" class="sk-head" data-c="${ci}" aria-expanded="false" aria-controls="t-skbox">${esc(c.label)}${c.name ? `<span class="sk-name">${esc(c.name)}</span>` : ''}<span class="sk-sub">${esc(c.sub)}</span></button></th>`;
     return `<h3 class="t-sub">Skill and standard heat map <span>(${SET_NAMES[level]} · each student's ${modeText()} · right out of that group's questions)</span></h3>
-      <div class="t-wrap"><table class="t-heat t-skill"><thead><tr><th scope="col">Student</th>${cols.map(c => `<th scope="col" class="${c.std ? 'sk-std' : ''}"${c.words ? ` title="${esc(c.words)}"` : ''}>${esc(c.label)}${c.name ? `<span class="sk-name">${esc(c.name)}</span>` : ''}<span class="sk-sub">${esc(c.sub)}</span></th>`).join('')}</tr></thead>
+      <p class="t-legend"><b>tap a box</b> to see that student's answers in that skill or standard · <b>tap a skill, a standard or its %</b> to see its questions</p>
+      <div class="t-wrap"><table class="t-heat t-skill"><thead><tr><th scope="col">Student</th>${cols.map(head).join('')}</tr></thead>
       <tbody>${body}</tbody><tfoot><tr><th scope="row">% right</th>${foot}</tr></tfoot></table></div>
+      <div id="t-skbox" class="t-qbox t-skbox" role="region" aria-live="polite" hidden></div>
       <ul class="t-std-list">${stds.map(std => `<li><b>${esc(std)} · ${esc((STD_INFO[std] || [])[0] || '')}</b> <span class="t-std-words">${esc((STD_INFO[std] || [])[1] || '')}</span></li>`).join('')}</ul>
       <p class="t-note">The questions name a skill, not a standard. The standards come from the real test's blueprint: 5.NF.1 = add and subtract with unlike denominators (the tenths and hundredths questions too); 5.NF.2 = word problems, models and finding the mistake.</p>`;
+  }
+
+  /* The skill / standard map's box (Marcos 11/25: "wouldn't it be helpful that all these be clickable?" → "Yes, build it").
+     A student's box → that student's answer on each question of that skill or standard (the question, what they picked,
+     the right answer, what they saw). A skill or standard name, or its % → its questions, each with its % right and its
+     most-picked wrong answer; a question's number opens its box under the heat map (what everyone picked). One box at a
+     time; tap the same thing again to close it. Kept through the 20-second updates, the sort and 1st take / latest take. */
+  let skCols = [];      // the map's columns as drawn: { label, name, sub, qs: question numbers, std }
+  let skOpen = null;    // the open box: { c: column, who: a student's key, or '' for the whole group }
+  const skScore = (d, qs) => { const right = qs.filter(q => !d.missed.has(q)).length; return { right, of: qs.length, pct: Math.round((right / qs.length) * 100) }; };
+  const skGroup = c => { const right = heatDone.reduce((n, d) => n + skScore(d, c.qs).right, 0), of = heatDone.length * c.qs.length; return { right, of, pct: Math.round((right / of) * 100) }; };
+
+  function skBoxHTML(c, d) {
+    const col = skCols[c];
+    const title = `<span class="kq-skill">${esc(col.label)}${col.name ? ` · ${esc(col.name)}` : ''}</span>`;
+    const x = '<button type="button" class="t-qbox-x" data-skclose aria-label="Close">✕</button>';
+    if (d) {
+      const s = skScore(d, col.qs);
+      return `<div class="t-qbox-head"><b>${esc(d.name)}</b>${title}<span class="t-pill ${heatClass(s.pct)}">${s.right} of ${s.of} right · ${s.pct}%</span>${x}</div>
+        ${col.qs.map(q => `<div class="sk-q"><h5>Question ${q}</h5><div class="t-qbox-q t-qbox-stem">${stemHTML(SETS[d.r.set][q - 1])}</div>${studentHTML(q - 1, d)}</div>`).join('')}`;
+    }
+    const g = skGroup(col);
+    const groups = takeGroups(heatSet);
+    // the wrong answer 2 or more students picked most, for each take shown (take 2 has its own numbers)
+    const topWrong = q => groups.map(t => {
+      const it = SETS[t.set][q - 1];
+      const tops = pickCounts(it, t.people).rows.filter(r => r.top);
+      return tops.length ? `${groups.length > 1 ? `${esc(setLabel(t.set))}: ` : ''}${tops.map(r => pickHTML(it, r.p)).join(' <i>or</i> ')} <span class="sk-n">(${tops[0].n} students${tops.length > 1 ? ' each' : ''})</span>` : '';
+    }).filter(Boolean);
+    const line = q => {
+      const s = heatStats[q - 1];
+      const tw = topWrong(q);
+      return `<li class="sk-line"><button type="button" class="h-qbtn sk-openq" data-q="${q - 1}" aria-controls="t-qbox" title="Question ${q}: tap to see what everyone picked">${q}</button>
+        <div class="sk-line-body"><span class="t-pill ${heatClass(s.pct)}">${s.right} of ${heatDone.length} right · ${s.pct}%</span>
+        <span class="sk-sum">${mathHTML(itemSummary(s.it))}</span>
+        <span class="sk-top">${tw.length ? `<b>Most-picked wrong answer:</b> ${tw.join(' · ')}` : 'No wrong answer was picked by 2 or more students.'}</span></div></li>`;
+    };
+    return `<div class="t-qbox-head"><b>${col.std ? 'Standard' : 'Skill'}</b>${title}<span class="t-pill ${heatClass(g.pct)}">${g.right} of ${g.of} answers right · ${g.pct}%</span>${x}</div>
+      <p class="t-note sk-hint">Tap a question's number to see what everyone picked.</p>
+      <ul class="sk-lines">${col.qs.map(line).join('')}</ul>`;
+  }
+  // draw the box for skOpen (or close it), and mark what is open
+  function drawSk() {
+    const box = $('#t-skbox');
+    if (!box) return;
+    const d = skOpen && skOpen.who ? heatDone.find(x => x.key === skOpen.who) : null;
+    if (skOpen && (!skCols[skOpen.c] || (skOpen.who && !d))) skOpen = null;   // that column or student is not on the map now
+    document.querySelectorAll('#t-skillmap .sk-cell, #t-skillmap .sk-head, #t-skillmap .sk-pbtn').forEach(b => {
+      const cell = b.classList.contains('sk-cell');
+      const on = Boolean(skOpen) && Number(b.dataset.c) === skOpen.c && (cell ? Boolean(d) && heatDone[Number(b.dataset.s)] === d : !skOpen.who);
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-expanded', String(on));
+    });
+    box.innerHTML = skOpen ? skBoxHTML(skOpen.c, d) : '';
+    box.hidden = !skOpen;
+  }
+  // a box (si = a student's row) or a name / % (si = null): open it, or close it when that one is open
+  function toggleSk(c, si) {
+    const who = si == null ? '' : heatDone[si].key;
+    skOpen = skOpen && skOpen.c === c && skOpen.who === who ? null : { c, who };
+    drawSk();
+  }
+  // a question's number in the skill box: open that question's box under the heat map (never close it) and go there
+  function openQ(i) {
+    const box = $('#t-qbox');
+    if (!box || !heatStats[i]) return;
+    if (box.hidden || box.dataset.q !== String(i) || box.dataset.s) toggleQ(i);
+    box.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   // keepBox: the box to open again after drawing (undefined = the one open now, when the set stays the same)
   function showHeat(set, keepBox) {
     const keep = keepBox !== undefined ? keepBox : (set === heatSet ? openBox() : null);
+    if (set !== heatSet) skOpen = null;   // another set: its skills are other columns
     heatSet = set;
     document.querySelectorAll('[data-heat]').forEach(t => t.classList.toggle('on', t.dataset.heat === set));
     document.querySelectorAll('[data-mode]').forEach(t => t.classList.toggle('on', t.dataset.mode === heatMode));
     $('#t-heat').innerHTML = heatHTML(set);
     $('#t-skillmap').innerHTML = heatDone.length ? skillHTML(set) : '';
+    drawSk();
     if (!keep || !heatStats[keep.q]) return;
     const si = keep.who ? heatDone.findIndex(d => d.key === keep.who) : -1;
     if (!keep.who) toggleQ(keep.q);
@@ -1192,6 +1266,7 @@
       return;
     }
     const keep = quiet ? { box: openBox(), y: window.scrollY } : null;
+    if (!quiet) skOpen = null;   // ↻ Refresh draws anew, like the heat map's box
     const rows = cleanRows(r.rows);
     classList = groupStudents(rows);
     fillFix();
@@ -1746,6 +1821,12 @@
       showHeat(heatSet);
       return;
     }
+    // the skill / standard map (11/25): a box, a name or a % opens its box; a question's number in it opens that question
+    if (e.target.closest('[data-skclose]')) { skOpen = null; drawSk(); return; }
+    const sk = e.target.closest('.sk-cell, .sk-head, .sk-pbtn');
+    if (sk) { toggleSk(Number(sk.dataset.c), sk.classList.contains('sk-cell') ? Number(sk.dataset.s) : null); return; }
+    const oq = e.target.closest('.sk-openq');
+    if (oq) { openQ(Number(oq.dataset.q)); return; }
     const c = e.target.closest('.h-cell');
     if (c) { toggleQ(Number(c.dataset.q), Number(c.dataset.s)); return; }
     const q = e.target.closest('.h-qbtn, .h-pbtn');

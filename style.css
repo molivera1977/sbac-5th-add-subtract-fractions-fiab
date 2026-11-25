@@ -545,6 +545,25 @@ body[data-screen="slides"] .container { max-width: 1320px; }
 .t-skill thead th { vertical-align: bottom; padding: 4px 4px; }
 .t-skill th.sk-std, .t-skill td:nth-last-child(-n+2) { border-left: 3px solid #94a3b8; }
 .t-skill td { padding: 6px 4px; }
+/* every box, skill / standard name and % on the skill map is a button: it opens the box under the map (11/25) */
+.t-skill td:has(.sk-cell), .t-skill td:has(.sk-pbtn) { padding: 0; }
+.sk-cell, .sk-pbtn { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 6px 4px; text-align: center;
+  cursor: pointer; border-radius: 4px; font-weight: 800; }
+.sk-cell:hover, .sk-cell.on, .sk-pbtn:hover, .sk-pbtn.on { outline: 3px solid var(--pd); outline-offset: -3px; }
+.sk-head { all: unset; display: block; box-sizing: border-box; width: 100%; cursor: pointer; border-radius: 6px; padding: 2px; text-align: center; }
+.sk-head:hover, .sk-head.on { outline: 2px solid var(--pd); background: #eef2ff; }
+.sk-cell:focus-visible, .sk-pbtn:focus-visible, .sk-head:focus-visible { outline: 3px solid #5eead4; outline-offset: -3px; }
+.t-skbox .sk-q { border-top: 1px solid var(--b); padding-top: 8px; margin-top: 8px; }
+.t-skbox .sk-q h5 { margin: 0 0 4px; font-size: 0.95rem; color: var(--pd); }
+.sk-hint { margin: 0 0 6px; }
+#t-qbox { scroll-margin-top: 12px; }   /* a question opened from the skill box lands with its heading in view */
+.sk-lines { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+.sk-line { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--b); border-radius: 10px; background: #f8fafc; }
+.sk-line-body { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.sk-sum { font-family: var(--font-read); }
+.sk-top { font-size: 0.88rem; }
+.sk-top .line, .sk-sum .line { display: inline; }   /* a choice's lines stay in the sentence */
+.sk-top .line + .line::before, .sk-sum .line + .line::before { content: ' '; }
 /* fix a misspelled name */
 .t-fix { margin: 22px 0 6px; padding: 10px 14px; border: 1px solid var(--b); border-radius: 12px; background: #f8fafc; }
 .t-fix summary { cursor: pointer; font-weight: 700; color: var(--pd); }
