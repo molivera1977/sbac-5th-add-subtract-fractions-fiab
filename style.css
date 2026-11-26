@@ -310,8 +310,8 @@ button { font: inherit; }
 .t-table th, .t-table td { border-bottom: 1px solid var(--b); padding: 10px 8px; text-align: center; vertical-align: middle; }
 .t-table th { font-size: 0.8rem; text-transform: uppercase; color: var(--tm); }
 .t-table th:first-child, .t-table td:first-child { text-align: left; font-weight: 800; }
-.t-table td b { display: block; font-size: 1.1rem; }
-.t-table td span { font-size: 0.75rem; color: var(--tm); }
+.t-table :where(tr:not(.t-sc-row)) td b { display: block; font-size: 1.1rem; }
+.t-table :where(tr:not(.t-sc-row)) td span { font-size: 0.75rem; color: var(--tm); }
 .t-table td .t-none { font-size: 1rem; color: #cbd5e1; }
 .t-sub { color: var(--pd); margin: 24px 0 10px; }
 .t-sub span { font-size: 0.8rem; font-weight: 600; color: var(--tm); }
@@ -631,3 +631,16 @@ body[data-screen="slides"] .container { max-width: 1320px; }
 
 /* 11/25 sample data bar: her class with no work yet shows sample students until her first student's answer arrives */
 .t-sample { margin: 12px 0 0; padding: 8px 14px; border-radius: 10px; background: #fef3c7; color: #78350f; font-weight: 800; border: 2px dashed #f59e0b; font-size: 0.9rem; }
+
+/* 11/25 a student's score and a Top 3 / Bottom 3 question are buttons (Marcos: "in the spirit of everything being clickable") */
+.t-cell, .t-rank-btn { display: block; width: 100%; padding: 6px 8px; border: 2px solid transparent; border-radius: 10px; background: none; font: inherit; color: inherit; cursor: pointer; }
+.t-cell:hover, .t-cell:focus-visible, .t-rank-btn:hover, .t-rank-btn:focus-visible { background: var(--pl); }
+.t-cell.on, .t-rank-btn.on { border-color: var(--p); background: var(--pl); }
+.t-rank-btn { text-align: left; }
+.t-cell { padding: 4px 2px; }
+.t-rank-btn .t-q { display: block; }
+.t-table .t-sc-row > td { text-align: left; font-weight: 400; padding: 2px 8px 14px; }
+.t-scbox { margin: 0; }
+.sc-take { margin-top: 10px; }
+.sc-line { margin: 0 0 6px; }
+.sc-q { margin-top: 8px; }
