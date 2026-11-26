@@ -869,7 +869,7 @@
       const now = r === c.now, its = SETS[r.set] || [], when = scWhen(r);
       const line = now
         ? `<b>▶ Working on it now</b> · ${esc(setLabel(r.set))} · ${r.answered} of ${r.tot || its.length} done · ${soFarHTML(r)}`
-        : `<b>${k === 0 ? '1st take' : `Take ${k + 1}`}</b> · ${esc(setLabel(r.set))} · <span class="${gradeFor(r.pct).c}">${r.pct}%</span> · ${r.pts} of ${r.tot || its.length} right${when ? ` · ${esc(when)}` : ''} · ${takeTime(r)}`;
+        : `<b>${k === 0 ? '1st take' : `Take ${k + 1}`}</b> · ${esc(takeNo(r.set) === k + 1 ? SET_NAMES[levelOf(r.set)] : setLabel(r.set))} · <span class="${gradeFor(r.pct).c}">${r.pct}%</span> · ${r.pts} of ${r.tot || its.length} right${when ? ` · ${esc(when)}` : ''} · ${takeTime(r)}`;
       const strip = its.map((it, i) => {
         const m = scMark(r, it, i);
         return `<button type="button" class="ts-q sc-qb ts-${m}" data-sctake="${k}" data-q="${i}" aria-expanded="false" title="Question ${i + 1}: ${m === 'ok' ? 'right' : m === 'miss' ? 'wrong' : 'not answered yet'}"><i>${i + 1}</i>${m === 'ok' ? '✓' : m === 'miss' ? '✗' : ''}</button>`;
